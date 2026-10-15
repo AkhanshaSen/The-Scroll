@@ -86,7 +86,7 @@ export function Desk({
           <small className="credit">Developer Akhansha Sen</small>
         </div>
         <button type="button" className="new-roll" onClick={onCreate}>
-          New roll
+          + New scroll
         </button>
       </header>
 
@@ -99,6 +99,10 @@ export function Desk({
           setLibraryOpen(false)
         }}
         onClose={() => setLibraryOpen(false)}
+        onCreate={() => {
+          onCreate()
+          setLibraryOpen(false)
+        }}
       />
 
       <main className="workspace">
@@ -138,10 +142,21 @@ export function Desk({
           </>
         ) : (
           <>
-            <p className="invite">
-              Open a roll from the library. The paper can hold a sonnet, a note, or anything you write yourself.
-            </p>
-            <TrayPlaceholder onOpenLibrary={() => setLibraryOpen(true)} />
+            <div className="invite">
+              <p>
+                Start a fresh scroll, or open one you saved before. The paper can hold a sonnet, a note, or anything
+                you write yourself.
+              </p>
+              <div className="invite-actions">
+                <button type="button" className="invite-cta" onClick={onCreate}>
+                  + New scroll
+                </button>
+                <button type="button" className="invite-secondary" onClick={() => setLibraryOpen(true)}>
+                  Open library
+                </button>
+              </div>
+            </div>
+            <TrayPlaceholder onNewRoll={onCreate} onOpenLibrary={() => setLibraryOpen(true)} />
           </>
         )}
       </main>
@@ -149,14 +164,25 @@ export function Desk({
   )
 }
 
-function TrayPlaceholder({ onOpenLibrary }: { onOpenLibrary: () => void }) {
+function TrayPlaceholder({
+  onNewRoll,
+  onOpenLibrary,
+}: {
+  onNewRoll: () => void
+  onOpenLibrary: () => void
+}) {
   return (
     <aside className="tray tray-placeholder">
       <h2>Write</h2>
-      <p className="whisper">The paper is waiting. Open a roll from the library, or start a new one.</p>
-      <button type="button" className="write" onClick={onOpenLibrary}>
-        Open library
-      </button>
+      <p className="whisper">Start a new scroll, or pick one from the library.</p>
+      <div className="placeholder-actions">
+        <button type="button" className="write" onClick={onNewRoll}>
+          + New scroll
+        </button>
+        <button type="button" className="placeholder-secondary" onClick={onOpenLibrary}>
+          Open library
+        </button>
+      </div>
     </aside>
   )
 }

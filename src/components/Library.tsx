@@ -8,9 +8,10 @@ type LibraryProps = {
   openId: string | null
   onOpen: (id: string) => void
   onClose: () => void
+  onCreate: () => void
 }
 
-export function Library({ open, scrolls, openId, onOpen, onClose }: LibraryProps) {
+export function Library({ open, scrolls, openId, onOpen, onClose, onCreate }: LibraryProps) {
   const [query, setQuery] = useState('')
   const searchRef = useRef<HTMLInputElement>(null)
   const needle = query.trim().toLowerCase()
@@ -58,6 +59,9 @@ export function Library({ open, scrolls, openId, onOpen, onClose }: LibraryProps
             onChange={(event) => setQuery(event.target.value)}
           />
         </label>
+        <button type="button" className="library-new" onClick={onCreate}>
+          + New scroll
+        </button>
         <ul>
           {rows.map((scroll) => {
             const form = FORMS.find((item) => item.id === scroll.form)

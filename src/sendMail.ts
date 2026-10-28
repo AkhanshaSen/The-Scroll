@@ -8,10 +8,11 @@ export async function sendScrollMail(input: {
   note: string
   imageBase64: string
   title: string
+  senderDisplayName?: string
 }): Promise<void> {
   if (!supabase) throw new Error('Supabase is not configured. Add keys to .env.local.')
   const { data: sessionData } = await supabase.auth.getSession()
-  if (!sessionData.session) throw new Error('Sign in before sending a scroll.')
+  if (!sessionData.session) throw new Error('Sign in or continue as guest before sending a scroll.')
 
   const recipients = sanitizeRecipients(input.recipients)
   if (recipients.length === 0) throw new Error('Add at least one valid email address.')
@@ -23,6 +24,7 @@ export async function sendScrollMail(input: {
       note: input.note,
       imageBase64: input.imageBase64,
       title: input.title,
+      senderDisplayName: input.senderDisplayName?.trim() || undefined,
     },
   })
 

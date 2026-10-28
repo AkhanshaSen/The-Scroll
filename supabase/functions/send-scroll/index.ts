@@ -6,6 +6,7 @@ const UUID_RE =
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const MAX_NOTE_LEN = 2000
 const MAX_TITLE_LEN = 500
+const MAX_DISPLAY_NAME_LEN = 40
 const MAX_RECIPIENTS = 10
 /** ~2.5 MB base64 string cap for inline email image */
 const MAX_IMAGE_BASE64_LEN = 2_500_000
@@ -21,6 +22,7 @@ type Body = {
   note?: string
   imageBase64?: string
   title?: string
+  senderDisplayName?: string
 }
 
 type Recipient = { email: string; category: string }
@@ -76,6 +78,18 @@ Deno.serve(async (request) => {
     } = await userClient.auth.getUser()
     if (userError || !user) return json({ error: 'Sign in to send a scroll.' }, 401, corsHeaders)
 
+    const isAnonymous = Boolean(
+      (user as { is_anonymous?: boolean }).is_anonymous ||
+        user.app_metadata?.provider === 'anonymous',
+    )
+    if (isAnonymous && !guestSendAllowed()) {
+      return json(
+        { error: 'Guest send is turned off. Sign in with email to send a scroll.' },
+        403,
+        corsHeaders,
+      )
+    }
+
     let body: Body
     try {
       body = (await request.json()) as Body
@@ -88,8 +102,13 @@ Deno.serve(async (request) => {
     const imageBase64 = body.imageBase64 ?? ''
     const title =
       (body.title ?? 'A paper scroll').trim().slice(0, MAX_TITLE_LEN) || 'A paper scroll'
-    const senderEmail = (user.email ?? '').trim().toLowerCase()
+    const senderEmail = isAnonymous ? '' : (user.email ?? '').trim().toLowerCase()
+    const senderDisplayName = sanitizeDisplayName(body.senderDisplayName ?? '')
     const recipients = parseRecipients(body)
+
+    if (isAnonymous && !senderDisplayName) {
+      return json({ error: 'Enter a sender name to send as a guest.' }, 400, corsHeaders)
+    }
 
     if (!scrollId || !UUID_RE.test(scrollId)) {
       return json({ error: 'A valid scroll is required.' }, 400, corsHeaders)
@@ -101,9 +120,13 @@ Deno.serve(async (request) => {
       return json({ error: 'The paper image could not be prepared.' }, 400, corsHeaders)
     }
 
+    const fromLabel = senderDisplayName || senderEmail || 'Someone'
+
     log('SEND_ATTEMPT', {
       userId: user.id,
       userEmail: senderEmail || null,
+      senderDisplayName: senderDisplayName || null,
+      guest: isAnonymous,
       scrollId,
       recipientCount: recipients.length,
       title,
@@ -137,6 +160,7 @@ Deno.serve(async (request) => {
           status: 'queued',
           category: recipient.category,
           sender_email: senderEmail,
+          sender_display_name: senderDisplayName,
           image_data: imageBase64,
         })
         .select('id, view_token')
@@ -152,21 +176,21 @@ Deno.serve(async (request) => {
         toEmail: recipient.email,
         category: recipient.category,
         title,
+        fromLabel,
         viewUrl,
       })
 
       const emailHtml = buildEmailHtml({
         title,
         note,
+        fromLabel,
         senderEmail,
         viewUrl,
         imageBase64,
       })
-      const emailText = buildEmailText({ title, note, senderEmail, viewUrl })
+      const emailText = buildEmailText({ title, note, fromLabel, viewUrl })
       const subjectTitle = title.length > 60 ? `${title.slice(0, 57)}…` : title
-      const subject = senderEmail
-        ? `Paper scroll studio — ${senderEmail} sent you “${subjectTitle}”`
-        : `Paper scroll studio — a scroll for you: “${subjectTitle}”`
+      const subject = `Paper scroll studio — ${fromLabel} sent you “${subjectTitle}”`
 
       const resendPayload: Record<string, unknown> = {
         from: sendFrom,
@@ -296,14 +320,28 @@ function summarizeResendFailure(status: number, body: string): string {
   return `Resend rejected delivery (HTTP ${status}). Check Edge Function logs and Resend → Logs.`
 }
 
+function guestSendAllowed(): boolean {
+  const raw = (Deno.env.get('ALLOW_GUEST_SEND') ?? 'true').trim().toLowerCase()
+  return raw !== 'false' && raw !== '0' && raw !== 'no'
+}
+
+function sanitizeDisplayName(raw: string): string {
+  return raw
+    .replace(/https?:\/\/\S+/gi, '')
+    .replace(/[<>&"'`]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, MAX_DISPLAY_NAME_LEN)
+}
+
 function buildEmailText(opts: {
   title: string
   note: string
-  senderEmail: string
+  fromLabel: string
   viewUrl: string
 }) {
-  const { title, note, senderEmail, viewUrl } = opts
-  const fromLine = senderEmail ? `From: ${senderEmail}` : 'Someone folded a scroll for you.'
+  const { title, note, fromLabel, viewUrl } = opts
+  const fromLine = `From: ${fromLabel}`
   const noteLine = note ? `\nTheir note:\n"${note}"\n` : ''
   return [
     'Paper scroll studio',
@@ -324,14 +362,13 @@ function buildEmailText(opts: {
 function buildEmailHtml(opts: {
   title: string
   note: string
+  fromLabel: string
   senderEmail: string
   viewUrl: string
   imageBase64: string
 }) {
-  const { title, note, senderEmail, viewUrl, imageBase64 } = opts
-  const fromLine = senderEmail
-    ? `From: <strong style="color:#fdf4e3;">${escapeHtml(senderEmail)}</strong>`
-    : 'Someone folded a scroll just for you'
+  const { title, note, fromLabel, senderEmail, viewUrl, imageBase64 } = opts
+  const fromLine = `From: <strong style="color:#fdf4e3;">${escapeHtml(fromLabel)}</strong>`
   const noteBlock = note
     ? `<table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin:0 0 24px;">
         <tr>
@@ -364,7 +401,7 @@ function buildEmailHtml(opts: {
 <body style="margin:0;padding:0;background:#1a0a04;font-family:Georgia,'Times New Roman',serif;">
   <!-- Preheader (inbox preview) -->
   <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">
-    Tap to open your sealed scroll from Paper scroll studio${senderEmail ? ` · ${escapeHtml(senderEmail)}` : ''}
+    Tap to open your sealed scroll from Paper scroll studio · ${escapeHtml(fromLabel)}${senderEmail ? ` (${escapeHtml(senderEmail)})` : ''}
   </div>
   <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background:#1a0a04;">
     <tr>

@@ -1279,6 +1279,40 @@ button:focus-visible, .scrap-text:focus-visible, input:focus-visible, textarea:f
 
 .send-sheet .write { width: auto; margin: 0; }
 
+.send-gate-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.send-gate-actions .write,
+.send-gate-secondary {
+  width: 100%;
+  margin: 0;
+}
+
+.send-gate-secondary {
+  border: 1px solid rgba(80, 50, 24, 0.28);
+  background: rgba(80, 50, 24, 0.06);
+  color: #3a2a1e;
+  border-radius: 999px;
+  padding: 12px 20px;
+  font-family: var(--ui, Georgia, serif);
+  font-size: 14px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.send-gate-secondary:hover {
+  background: rgba(80, 50, 24, 0.12);
+}
+
+.send-gate-status {
+  margin-top: 14px;
+}
+
 .auth-panel, .auth-signed {
   display: flex;
   align-items: center;

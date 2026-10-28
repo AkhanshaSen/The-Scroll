@@ -9,7 +9,12 @@ declare module 'https://esm.sh/@supabase/supabase-js@2.49.1' {
     }
     from(table: string): QueryBuilderLike
   }
-  type AuthUserLike = { id: string; email?: string }
+  type AuthUserLike = {
+    id: string
+    email?: string
+    is_anonymous?: boolean
+    app_metadata?: Record<string, unknown>
+  }
   type QueryBuilderLike = {
     select(cols: string): QueryBuilderLike
     eq(col: string, val: string): QueryBuilderLike

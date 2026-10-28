@@ -50,6 +50,13 @@ Also run:
 
 **Resend:** set secret `SEND_FROM` to `Paper scroll studio <onboarding@resend.dev>`. Until you verify a domain, send only to your Resend account email. Scroll emails are separate from Supabase Auth magic-link emails.
 
+## Guest send (optional)
+
+1. Set `VITE_ALLOW_GUEST_SEND=true` in `.env.local` (and GitHub Actions secret `VITE_ALLOW_GUEST_SEND=true` for Pages).
+2. Enable **Authentication → Providers → Anonymous** (or `enable_anonymous_sign_ins = true` in `supabase/config.toml` then `npx supabase config push --yes`).
+3. Edge Function secret `ALLOW_GUEST_SEND=true` (set to `false` to reject anonymous sends server-side).
+4. Guests pick a **display name** used in the email “From” line; magic-link sign-in still available.
+
 ## GitHub Pages (production)
 
 1. **Repository → Settings → Secrets and variables → Actions** — add:

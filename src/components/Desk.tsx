@@ -6,6 +6,7 @@ import type { Scrap, Scroll, Stroke, TextureId } from '../types.ts'
 import { EnvelopeScene } from './EnvelopeScene.tsx'
 import { Library } from './Library.tsx'
 import { OpenScroll, type ScrollPhase } from './Scroll.tsx'
+import { SendGateDialog, type SendGateReady } from './SendGateDialog.tsx'
 import { SendSheet } from './SendSheet.tsx'
 import { Tray } from './Tray.tsx'
 
@@ -17,8 +18,10 @@ type DeskProps = {
   busy: 'print' | 'pdf' | 'send' | null
   focusId: string | null
   session: Session | null
+  guestDisplayName: string
   sendLogRefreshKey: number
   sendOpen: boolean
+  sendGateOpen: boolean
   sendDone: boolean
   onToggle: (id: string) => void
   onCreate: () => void
@@ -31,6 +34,8 @@ type DeskProps = {
   onCloseScroll: () => void
   onOpenSend: () => void
   onCloseSend: () => void
+  onCloseSendGate: () => void
+  onSendGateReady: (result: SendGateReady) => void
   onConfirmSend: (recipients: MailRecipient[], note: string) => void | Promise<void>
   onDuplicate: () => void
   onDelete: () => void
@@ -54,8 +59,10 @@ export function Desk({
   busy,
   focusId,
   session,
+  guestDisplayName,
   sendLogRefreshKey,
   sendOpen,
+  sendGateOpen,
   sendDone,
   onToggle,
   onCreate,
@@ -68,6 +75,8 @@ export function Desk({
   onCloseScroll,
   onOpenSend,
   onCloseSend,
+  onCloseSendGate,
+  onSendGateReady,
   onConfirmSend,
   onDuplicate,
   onDelete,
@@ -105,7 +114,7 @@ export function Desk({
           <small>Stays on this computer</small>
           <small className="credit">Developer Akhansha Sen</small>
         </div>
-        <AuthPanel session={session} />
+        <AuthPanel session={session} guestDisplayName={guestDisplayName} />
         <button type="button" className="new-roll" onClick={onCreate}>
           + New scroll
         </button>
@@ -177,6 +186,12 @@ export function Desk({
           <TrayPlaceholder onNewRoll={onCreate} onOpenLibrary={() => setLibraryOpen(true)} />
         )}
       </main>
+
+      <SendGateDialog
+        open={sendGateOpen}
+        onClose={onCloseSendGate}
+        onReady={onSendGateReady}
+      />
 
       <SendSheet
         key={sendOpen ? 'send-open' : 'send-closed'}

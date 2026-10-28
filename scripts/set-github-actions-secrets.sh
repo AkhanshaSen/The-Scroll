@@ -23,6 +23,7 @@ get_var() {
 
 URL="$(get_var VITE_SUPABASE_URL)"
 KEY="$(get_var VITE_SUPABASE_PUBLISHABLE_KEY)"
+GUEST="$(get_var VITE_ALLOW_GUEST_SEND)"
 if [[ -z "$URL" || -z "$KEY" ]]; then
   echo "VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY required in .env.local"
   exit 1
@@ -30,4 +31,5 @@ fi
 
 gh secret set VITE_SUPABASE_URL --body "$URL"
 gh secret set VITE_SUPABASE_PUBLISHABLE_KEY --body "$KEY"
+gh secret set VITE_ALLOW_GUEST_SEND --body "${GUEST:-true}"
 echo "GitHub Actions secrets updated. Re-run Deploy workflow or push to main."

@@ -38,7 +38,8 @@
 1. Run [`001_scrolls_and_sends.sql`](../supabase/migrations/001_scrolls_and_sends.sql). If you ran an older version, also run [`002_security_hardening.sql`](../supabase/migrations/002_security_hardening.sql).
 2. **Authentication → URL configuration**: add only your real app origins (localhost, GitHub Pages).
 3. **Authentication → Providers**: keep Email on; disable unused providers.
-4. **Edge Function secrets**: `RESEND_API_KEY`, `SEND_FROM` (use `Paper scroll studio <onboarding@resend.dev>` while testing), `VIEW_BASE_URL`, optionally `ALLOWED_ORIGINS`.
+4. **Edge Function secrets**: `RESEND_API_KEY`, `SEND_FROM` (use `Paper scroll studio <onboarding@resend.dev>` while testing), `VIEW_BASE_URL`, optionally `ALLOWED_ORIGINS`, optionally `ALLOW_GUEST_SEND` (`true`/`false` — gates anonymous guest sends).
+5. **Guest send**: optional via `VITE_ALLOW_GUEST_SEND`. Guests use Supabase anonymous auth + a display name (no reply-to). Turn off both client and Edge flags to disable.
 5. Do not expose the database connection string or service role key in the frontend or GitHub Actions logs.
 
 ## Local data

@@ -19,6 +19,8 @@ import {
   withTexture,
   writeFromWords,
 } from './model.ts'
+import type { SendGateReady } from './components/SendGateDialog.tsx'
+import { clearGuestDisplayName, loadGuestDisplayName, saveGuestDisplayName } from './lib/guestSend.ts'
 import type { MailRecipient } from './lib/recipients.ts'
 import { sendScrollMail } from './sendMail.ts'
 import { loadDesk, saveDesk } from './storage.ts'
@@ -37,7 +39,9 @@ export default function App() {
   const [busy, setBusy] = useState<'print' | 'pdf' | 'send' | null>(null)
   const [focusId, setFocusId] = useState<string | null>(null)
   const [session, setSession] = useState<Session | null>(null)
+  const [guestDisplayName, setGuestDisplayName] = useState(() => loadGuestDisplayName())
   const [sendOpen, setSendOpen] = useState(false)
+  const [sendGateOpen, setSendGateOpen] = useState(false)
   const [sendDone, setSendDone] = useState(false)
   const [sendLogRefreshKey, setSendLogRefreshKey] = useState(0)
   const pendingRef = useRef<string | null>(null)
@@ -46,14 +50,34 @@ export default function App() {
     recipients: MailRecipient[]
     note: string
     imageBase64?: string
+    senderDisplayName?: string
   } | null>(null)
+  const senderDisplayNameRef = useRef(guestDisplayName)
   const syncTimer = useRef<number | null>(null)
   const clearFocus = useCallback(() => setFocusId(null), [])
 
   useEffect(() => {
     if (!supabase) return
-    void supabase.auth.getSession().then(({ data }) => setSession(data.session))
-    const { data } = supabase.auth.onAuthStateChange((_event, next) => setSession(next))
+    void supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session)
+      if (!data.session?.user.is_anonymous) {
+        clearGuestDisplayName()
+        setGuestDisplayName('')
+        senderDisplayNameRef.current = ''
+      } else {
+        const name = loadGuestDisplayName()
+        setGuestDisplayName(name)
+        senderDisplayNameRef.current = name
+      }
+    })
+    const { data } = supabase.auth.onAuthStateChange((_event, next) => {
+      setSession(next)
+      if (!next?.user.is_anonymous) {
+        clearGuestDisplayName()
+        setGuestDisplayName('')
+        senderDisplayNameRef.current = ''
+      }
+    })
     return () => data.subscription.unsubscribe()
   }, [])
 
@@ -101,11 +125,16 @@ export default function App() {
     setBusy('send')
     const title = displayTitle(open)
     const emails = payload.recipients.map((item) => item.email)
+    const senderDisplayName =
+      payload.senderDisplayName?.trim() ||
+      (session?.user.is_anonymous ? senderDisplayNameRef.current : undefined)
     console.log('[scroll:send] attempt', {
       scrollId: open.id,
       recipients: payload.recipients,
       title,
       from: session?.user.email ?? null,
+      senderDisplayName: senderDisplayName || null,
+      guest: Boolean(session?.user.is_anonymous),
     })
     try {
       await upsertScroll(open)
@@ -116,6 +145,7 @@ export default function App() {
         note: payload.note,
         imageBase64: image,
         title,
+        senderDisplayName,
       })
       console.log('[scroll:send] ✓ sent', {
         scrollId: open.id,
@@ -285,8 +315,22 @@ export default function App() {
   function openSend() {
     if (!open || busy) return
     if (!session) {
-      window.alert('Sign in with your email first. Then you can fold a scroll into an envelope and send it.')
+      setSendGateOpen(true)
       return
+    }
+    if (session.user.is_anonymous && !senderDisplayNameRef.current && !guestDisplayName) {
+      setSendGateOpen(true)
+      return
+    }
+    setSendOpen(true)
+  }
+
+  function onSendGateReady(result: SendGateReady) {
+    setSendGateOpen(false)
+    if (result.mode === 'guest' && result.senderDisplayName) {
+      saveGuestDisplayName(result.senderDisplayName)
+      setGuestDisplayName(result.senderDisplayName)
+      senderDisplayNameRef.current = result.senderDisplayName
     }
     setSendOpen(true)
   }
@@ -298,7 +342,14 @@ export default function App() {
     setSendDone(false)
     try {
       const imageBase64 = await captureStage()
-      sendPayloadRef.current = { recipients, note, imageBase64 }
+      sendPayloadRef.current = {
+        recipients,
+        note,
+        imageBase64,
+        senderDisplayName: session?.user.is_anonymous
+          ? senderDisplayNameRef.current || guestDisplayName
+          : undefined,
+      }
       setBusy(null)
       if (reducedMotion()) {
         phaseRef.current = 'envelope'
@@ -324,8 +375,10 @@ export default function App() {
       busy={busy}
       focusId={focusId}
       session={session}
+      guestDisplayName={guestDisplayName}
       sendLogRefreshKey={sendLogRefreshKey}
       sendOpen={sendOpen}
+      sendGateOpen={sendGateOpen}
       sendDone={sendDone}
       onToggle={(id) => {
         if (openId === id) requestClose(null)
@@ -361,6 +414,8 @@ export default function App() {
       onCloseScroll={() => requestClose(null)}
       onOpenSend={openSend}
       onCloseSend={() => setSendOpen(false)}
+      onCloseSendGate={() => setSendGateOpen(false)}
+      onSendGateReady={onSendGateReady}
       onConfirmSend={confirmSend}
       onDuplicate={() => {
         if (open) duplicate(open.id)

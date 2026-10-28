@@ -19,6 +19,7 @@ export function createScroll(): Scroll {
     scraps: [],
     strokes: [],
     created: Date.now(),
+    updatedAt: Date.now(),
   }
 }
 
@@ -93,12 +94,14 @@ export function scatterLines(scroll: Scroll): Scroll {
 }
 
 export function duplicateScroll(scroll: Scroll): Scroll {
+  const now = Date.now()
   return {
     ...scroll,
     id: uid(),
     title: `${displayTitle(scroll)} copy`,
     titleCustom: true,
-    created: Date.now(),
+    created: now,
+    updatedAt: now,
     scraps: scroll.scraps.map((scrap) => ({ ...scrap, id: uid() })),
     strokes: scroll.strokes.map((stroke) => ({
       ...stroke,
@@ -106,6 +109,10 @@ export function duplicateScroll(scroll: Scroll): Scroll {
       points: stroke.points.map((point) => ({ ...point })),
     })),
   }
+}
+
+export function touchScroll(scroll: Scroll): Scroll {
+  return { ...scroll, updatedAt: Date.now() }
 }
 
 export function ensureBlankScrap(scroll: Scroll, id = uid()): Scroll {

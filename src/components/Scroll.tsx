@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { Scrap, Scroll, Stroke } from '../types.ts'
 import { Sheet } from './Sheet.tsx'
 
-export type ScrollPhase = 'opening' | 'open' | 'closing'
+export type ScrollPhase = 'opening' | 'open' | 'folding' | 'envelope' | 'closing'
 
 type OpenProps = {
   scroll: Scroll
@@ -21,7 +21,8 @@ export function OpenScroll({ phase, onPhaseEnd, scroll, ...sheet }: OpenProps) {
   const clipRef = useRef<HTMLDivElement>(null)
   const [armed, setArmed] = useState(false)
   if (phase !== 'opening' && armed) setArmed(false)
-  const spreadNow = phase === 'open' || (phase === 'opening' && armed)
+  const spreadNow = phase === 'open' || (phase === 'opening' && armed) || phase === 'folding' || phase === 'envelope'
+  const folding = phase === 'folding' || phase === 'envelope'
 
   useEffect(() => {
     if (phase !== 'opening') return
@@ -30,7 +31,13 @@ export function OpenScroll({ phase, onPhaseEnd, scroll, ...sheet }: OpenProps) {
   }, [phase, scroll.id])
 
   useEffect(() => {
-    if (phase === 'open') return
+    if (phase === 'open' || phase === 'envelope') return
+    if (phase === 'folding') {
+      const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      const wait = reduced ? 0 : 1400
+      const timer = window.setTimeout(() => onPhaseEnd('folding'), wait)
+      return () => window.clearTimeout(timer)
+    }
     const el = clipRef.current
     if (!el) return
     let settled = false
@@ -56,10 +63,18 @@ export function OpenScroll({ phase, onPhaseEnd, scroll, ...sheet }: OpenProps) {
     }
   }, [phase, onPhaseEnd])
 
-  const clipClass = spreadNow ? 'clip is-open' : phase === 'closing' ? 'clip is-closing' : 'clip is-opening'
+  const clipClass = spreadNow && !folding
+    ? 'clip is-open'
+    : phase === 'closing'
+      ? 'clip is-closing'
+      : folding
+        ? 'clip is-open is-folding'
+        : 'clip is-opening'
 
   return (
-    <div className={`stage ${spreadNow ? 'is-spread' : 'is-tight'} tube-${scroll.texture}`}>
+    <div
+      className={`stage ${spreadNow ? 'is-spread' : 'is-tight'} ${folding ? 'is-folding' : ''} tube-${scroll.texture}`}
+    >
       <div className="cylinder top" />
       <div ref={clipRef} className={clipClass}>
         <div className="clip-inner">

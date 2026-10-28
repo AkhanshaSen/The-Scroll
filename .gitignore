@@ -10,7 +10,28 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+
+# ── Secrets & env ────────────────────────────────────────────────────────────
+# Never commit any .env file or credentials.
 *.local
+.env
+.env.*
+!.env.example
+
+# Supabase project-specific secrets / CLI cache
+supabase/.project-ref
+supabase/.temp/
+supabase/functions/**/*.tsbuildinfo
+
+# Key / cert files
+*.key
+*.pem
+*.p8
+*.p12
+
+# Secrets folder (if ever used)
+secrets/
+# ─────────────────────────────────────────────────────────────────────────────
 
 # Editor directories and files
 .vscode/*

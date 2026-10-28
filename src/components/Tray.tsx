@@ -1,15 +1,20 @@
+import type { Session } from '@supabase/supabase-js'
 import { displayTitle } from '../model.ts'
 import { FONTS, FORMS, INKS, STICKERS, TEXTURES, fontOf, type Scroll, type TextureId } from '../types.ts'
+import { SendLog } from './SendLog.tsx'
 
 type TrayProps = {
   scroll: Scroll
   pen: boolean
-  busy: 'print' | 'pdf' | null
+  busy: 'print' | 'pdf' | 'send' | null
+  session: Session | null
+  sendLogRefreshKey: number
   onPatch: (patch: Partial<Scroll>) => void
   onTexture: (texture: TextureId) => void
   onWrite: () => void
   onScatter: () => void
-  onRollUp: () => void
+  onCloseScroll: () => void
+  onSendMail: () => void
   onDuplicate: () => void
   onDelete: () => void
   onPen: () => void
@@ -24,11 +29,14 @@ export function Tray({
   scroll,
   pen,
   busy,
+  session,
+  sendLogRefreshKey,
   onPatch,
   onTexture,
   onWrite,
   onScatter,
-  onRollUp,
+  onCloseScroll,
+  onSendMail,
   onDuplicate,
   onDelete,
   onPen,
@@ -110,8 +118,11 @@ export function Tray({
             Scatter lines
           </button>
         )}
-        <button type="button" onClick={onRollUp}>
-          Roll up
+        <button type="button" className="write" onClick={onSendMail}>
+          Send by mail
+        </button>
+        <button type="button" onClick={onCloseScroll}>
+          Close scroll
         </button>
       </div>
       </section>
@@ -217,6 +228,8 @@ export function Tray({
         </button>
       </div>
       </section>
+
+      {session && <SendLog refreshKey={sendLogRefreshKey} />}
     </aside>
   )
 }

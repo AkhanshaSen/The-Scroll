@@ -24,12 +24,13 @@ export function saveDesk(scrolls: Scroll[]) {
   }
 }
 
-function sanitize(value: unknown): Scroll | null {
+export function sanitizeScroll(value: unknown): Scroll | null {
   if (!isRecord(value) || typeof value.id !== 'string') return null
   const texture = oneOf(value.texture, TEXTURES.map((item) => item.id), 'cream')
   const font = oneOf(value.font, FONTS.map((item) => item.id), 'print')
   const ink = oneOf(value.ink, INKS.map((item) => item.id), 'ink')
   const form = oneOf(value.form, FORMS.map((item) => item.id), 'sonnet')
+  const created = typeof value.created === 'number' ? value.created : Date.now()
   return {
     id: value.id,
     title: typeof value.title === 'string' ? value.title : '',
@@ -42,8 +43,13 @@ function sanitize(value: unknown): Scroll | null {
     salt: typeof value.salt === 'number' && Number.isFinite(value.salt) ? value.salt : 0,
     scraps: Array.isArray(value.scraps) ? value.scraps.map(sanitizeScrap).filter((item) => item !== null) : [],
     strokes: Array.isArray(value.strokes) ? value.strokes.map(sanitizeStroke).filter((item) => item !== null) : [],
-    created: typeof value.created === 'number' ? value.created : Date.now(),
+    created,
+    updatedAt: typeof value.updatedAt === 'number' ? value.updatedAt : created,
   }
+}
+
+function sanitize(value: unknown): Scroll | null {
+  return sanitizeScroll(value)
 }
 
 function sanitizeScrap(value: unknown): Scrap | null {

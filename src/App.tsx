@@ -1,9 +1,28 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import type { Session } from '@supabase/supabase-js'
 import { Desk } from './components/Desk.tsx'
 import type { ScrollPhase } from './components/Scroll.tsx'
 import { captureStage, downloadPdf, printSheet } from './exportSheet.ts'
-import { addScrap, addSticker, createScroll, displayTitle, duplicateScroll, normalizeLook, scatterLines, syncBlankScrapToWords, syncWordsToBlank, uid, withTexture, writeFromWords } from './model.ts'
+import { supabase } from './lib/supabase.ts'
+import {
+  addScrap,
+  addSticker,
+  createScroll,
+  displayTitle,
+  duplicateScroll,
+  normalizeLook,
+  scatterLines,
+  syncBlankScrapToWords,
+  syncWordsToBlank,
+  touchScroll,
+  uid,
+  withTexture,
+  writeFromWords,
+} from './model.ts'
+import type { MailRecipient } from './lib/recipients.ts'
+import { sendScrollMail } from './sendMail.ts'
 import { loadDesk, saveDesk } from './storage.ts'
+import { deleteRemoteScroll, fetchScrollsForUser, mergeScrolls, upsertScroll } from './storage/remoteScrolls.ts'
 import type { Scroll, Stroke, TextureId } from './types.ts'
 
 function reducedMotion() {
@@ -15,43 +34,160 @@ export default function App() {
   const [openId, setOpenId] = useState<string | null>(null)
   const [phase, setPhase] = useState<ScrollPhase>('open')
   const [pen, setPen] = useState(false)
-  const [busy, setBusy] = useState<'print' | 'pdf' | null>(null)
+  const [busy, setBusy] = useState<'print' | 'pdf' | 'send' | null>(null)
   const [focusId, setFocusId] = useState<string | null>(null)
+  const [session, setSession] = useState<Session | null>(null)
+  const [sendOpen, setSendOpen] = useState(false)
+  const [sendDone, setSendDone] = useState(false)
+  const [sendLogRefreshKey, setSendLogRefreshKey] = useState(0)
   const pendingRef = useRef<string | null>(null)
   const phaseRef = useRef<ScrollPhase>('open')
+  const sendPayloadRef = useRef<{
+    recipients: MailRecipient[]
+    note: string
+    imageBase64?: string
+  } | null>(null)
+  const syncTimer = useRef<number | null>(null)
   const clearFocus = useCallback(() => setFocusId(null), [])
 
-  const onPhaseEnd = useCallback((ended: ScrollPhase) => {
-    if (phaseRef.current !== ended) return
-    if (ended === 'opening') {
-      phaseRef.current = 'open'
-      setPhase('open')
-      return
-    }
-    if (ended !== 'closing') return
-    const next = pendingRef.current
-    pendingRef.current = null
-    if (next) {
-      const following = reducedMotion() ? 'open' : 'opening'
-      phaseRef.current = following
-      setOpenId(next)
-      setPhase(following)
-    } else {
-      phaseRef.current = 'open'
-      setOpenId(null)
-    }
+  useEffect(() => {
+    if (!supabase) return
+    void supabase.auth.getSession().then(({ data }) => setSession(data.session))
+    const { data } = supabase.auth.onAuthStateChange((_event, next) => setSession(next))
+    return () => data.subscription.unsubscribe()
   }, [])
 
   useEffect(() => {
+    if (!session) return
+    let cancelled = false
+    void (async () => {
+      try {
+        const remote = await fetchScrollsForUser()
+        if (cancelled) return
+        setScrolls((local) => {
+          const merged = mergeScrolls(local, remote)
+          return merged.length ? merged : local
+        })
+      } catch {
+        // Keep local cache if remote is unreachable.
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [session])
+
+  useEffect(() => {
     saveDesk(scrolls)
-  }, [scrolls])
+    if (!session || !supabase) return
+    if (syncTimer.current) window.clearTimeout(syncTimer.current)
+    syncTimer.current = window.setTimeout(() => {
+      void Promise.all(scrolls.map((scroll) => upsertScroll(scroll).catch(() => undefined)))
+    }, 800)
+    return () => {
+      if (syncTimer.current) window.clearTimeout(syncTimer.current)
+    }
+  }, [scrolls, session])
+
+  const finishSend = useCallback(async () => {
+    const open = scrolls.find((scroll) => scroll.id === openId)
+    const payload = sendPayloadRef.current
+    if (!open || !payload) {
+      phaseRef.current = 'open'
+      setPhase('open')
+      setBusy(null)
+      return
+    }
+    setBusy('send')
+    const title = displayTitle(open)
+    const emails = payload.recipients.map((item) => item.email)
+    console.log('[scroll:send] attempt', {
+      scrollId: open.id,
+      recipients: payload.recipients,
+      title,
+      from: session?.user.email ?? null,
+    })
+    try {
+      await upsertScroll(open)
+      const image = payload.imageBase64 ?? (await captureStage())
+      await sendScrollMail({
+        scrollId: open.id,
+        recipients: payload.recipients,
+        note: payload.note,
+        imageBase64: image,
+        title,
+      })
+      console.log('[scroll:send] ✓ sent', {
+        scrollId: open.id,
+        emails,
+        title,
+      })
+      setSendLogRefreshKey((key) => key + 1)
+      setSendDone(true)
+      window.setTimeout(() => {
+        sendPayloadRef.current = null
+        setSendDone(false)
+        setBusy(null)
+        pendingRef.current = null
+        phaseRef.current = 'closing'
+        setPhase('closing')
+      }, reducedMotion() ? 200 : 900)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'The letter could not be sent.'
+      console.error('[scroll:send] ✗ failed', {
+        scrollId: open.id,
+        emails,
+        title,
+        message,
+      })
+      window.alert(message)
+      sendPayloadRef.current = null
+      setSendDone(false)
+      setBusy(null)
+      phaseRef.current = 'open'
+      setPhase('open')
+    }
+  }, [openId, scrolls, session])
+
+  const onPhaseEnd = useCallback(
+    (ended: ScrollPhase) => {
+      if (phaseRef.current !== ended) return
+      if (ended === 'opening') {
+        phaseRef.current = 'open'
+        setPhase('open')
+        return
+      }
+      if (ended === 'folding') {
+        phaseRef.current = 'envelope'
+        setPhase('envelope')
+        void finishSend()
+        return
+      }
+      if (ended !== 'closing') return
+      const next = pendingRef.current
+      pendingRef.current = null
+      if (next) {
+        const following = reducedMotion() ? 'open' : 'opening'
+        phaseRef.current = following
+        setOpenId(next)
+        setPhase(following)
+      } else {
+        phaseRef.current = 'open'
+        setOpenId(null)
+      }
+    },
+    [finishSend],
+  )
 
   function update(id: string, recipe: (scroll: Scroll) => Scroll) {
-    setScrolls((current) => current.map((scroll) => (scroll.id === id ? recipe(scroll) : scroll)))
+    setScrolls((current) =>
+      current.map((scroll) => (scroll.id === id ? touchScroll(recipe(scroll)) : scroll)),
+    )
   }
 
   function openRoll(id: string) {
     setPen(false)
+    setSendDone(false)
     const scroll = scrolls.find((item) => item.id === id)
     if (scroll?.form === 'blank' && !scroll.scraps.some((scrap) => scrap.role === 'blank')) {
       const blankId = uid()
@@ -74,7 +210,7 @@ export default function App() {
       if (nextId) openRoll(nextId)
       return
     }
-    if (phaseRef.current === 'closing') {
+    if (phaseRef.current === 'closing' || phaseRef.current === 'folding' || phaseRef.current === 'envelope') {
       if (nextId) pendingRef.current = nextId
       return
     }
@@ -100,13 +236,14 @@ export default function App() {
     const scroll = scrolls.find((item) => item.id === id)
     if (!scroll) return
     const dirty = scroll.scraps.some((scrap) => scrap.text.trim()) || scroll.strokes.length > 0
-    if (dirty && !window.confirm('Throw this roll away? It only exists on this computer.')) return
+    if (dirty && !window.confirm('Throw this roll away?')) return
     const fallback = scrolls.length === 1 ? createScroll() : null
     setScrolls((current) => {
       const next = current.filter((item) => item.id !== id)
       if (next.length) return next
       return fallback ? [fallback] : [createScroll()]
     })
+    if (session) void deleteRemoteScroll(id).catch(() => undefined)
     if (openId === id) {
       pendingRef.current = null
       phaseRef.current = 'open'
@@ -132,7 +269,7 @@ export default function App() {
   const open = scrolls.find((scroll) => scroll.id === openId)
 
   async function share(mode: 'print' | 'pdf') {
-    if (!open || busy || phase === 'closing') return
+    if (!open || busy || phase === 'closing' || phase === 'folding' || phase === 'envelope') return
     setBusy(mode)
     try {
       const image = await captureStage()
@@ -145,6 +282,39 @@ export default function App() {
     }
   }
 
+  function openSend() {
+    if (!open || busy) return
+    if (!session) {
+      window.alert('Sign in with your email first. Then you can fold a scroll into an envelope and send it.')
+      return
+    }
+    setSendOpen(true)
+  }
+
+  async function confirmSend(recipients: MailRecipient[], note: string) {
+    if (!open || phase !== 'open' || busy) return
+    setSendOpen(false)
+    setBusy('send')
+    setSendDone(false)
+    try {
+      const imageBase64 = await captureStage()
+      sendPayloadRef.current = { recipients, note, imageBase64 }
+      setBusy(null)
+      if (reducedMotion()) {
+        phaseRef.current = 'envelope'
+        setPhase('envelope')
+        void finishSend()
+        return
+      }
+      phaseRef.current = 'folding'
+      setPhase('folding')
+    } catch {
+      setBusy(null)
+      sendPayloadRef.current = null
+      window.alert('The paper could not be prepared. Try again with the roll open.')
+    }
+  }
+
   return (
     <Desk
       scrolls={scrolls}
@@ -153,6 +323,10 @@ export default function App() {
       pen={pen}
       busy={busy}
       focusId={focusId}
+      session={session}
+      sendLogRefreshKey={sendLogRefreshKey}
+      sendOpen={sendOpen}
+      sendDone={sendDone}
       onToggle={(id) => {
         if (openId === id) requestClose(null)
         else requestClose(id)
@@ -184,7 +358,10 @@ export default function App() {
       onScatter={() => {
         if (open) update(open.id, scatterLines)
       }}
-      onRollUp={() => requestClose(null)}
+      onCloseScroll={() => requestClose(null)}
+      onOpenSend={openSend}
+      onCloseSend={() => setSendOpen(false)}
+      onConfirmSend={confirmSend}
       onDuplicate={() => {
         if (open) duplicate(open.id)
       }}
@@ -199,7 +376,7 @@ export default function App() {
         if (open) update(open.id, (scroll) => ({ ...scroll, strokes: [] }))
       }}
       onSticker={(mark) => {
-        if (!open || phase === 'closing') return
+        if (!open || phase === 'closing' || phase === 'folding' || phase === 'envelope') return
         update(open.id, (scroll) => addSticker(scroll, mark, uid()))
       }}
       onPrint={() => {
@@ -209,7 +386,7 @@ export default function App() {
         void share('pdf')
       }}
       onAddScrap={(x, y) => {
-        if (!open || phase === 'closing') return
+        if (!open || phase === 'closing' || phase === 'folding' || phase === 'envelope') return
         const id = uid()
         setFocusId(id)
         update(open.id, (scroll) => addScrap(scroll, x, y, id))
@@ -236,7 +413,7 @@ export default function App() {
         })
       }}
       onCommitStroke={(stroke: Stroke) => {
-        if (!open || phase === 'closing') return
+        if (!open || phase === 'closing' || phase === 'folding' || phase === 'envelope') return
         update(open.id, (scroll) => ({ ...scroll, strokes: [...scroll.strokes, stroke] }))
       }}
     />

@@ -1,0 +1,6 @@
+# Link this folder to your Supabase project (after `npx supabase login`):
+#   npx supabase link --project-ref "$(cat supabase/.project-ref)"
+#
+# Or run from repo root: npm run supabase:link
+
+project_id = "kaiffjdbfjkjqisumklh"

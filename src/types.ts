@@ -94,6 +94,7 @@ export type Scroll = {
   scraps: Scrap[]
   strokes: Stroke[]
   created: number
+  updatedAt: number
 }
 
 export function fontOf(id: FontId) {

@@ -50,4 +50,16 @@ Also run:
 
 **Resend:** set secret `SEND_FROM` to `Paper scroll studio <onboarding@resend.dev>`. Until you verify a domain, send only to your Resend account email. Scroll emails are separate from Supabase Auth magic-link emails.
 
+## GitHub Pages (production)
+
+1. **Repository → Settings → Secrets and variables → Actions** — add:
+   - `VITE_SUPABASE_URL` (same as `.env.local`)
+   - `VITE_SUPABASE_PUBLISHABLE_KEY` (same as `.env.local`)
+2. Push to `main` — workflow [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) runs `npm run build` with those secrets.
+3. Auth redirect URLs and site URL are defined in [`../supabase/config.toml`](../supabase/config.toml); apply with:
+   ```bash
+   npx supabase config push --project-ref YOUR_REF --yes
+   ```
+4. Edge secrets for production links: `VIEW_BASE_URL=https://akhanshasen.github.io/The-Scroll`, `ALLOWED_ORIGINS` includes `https://akhanshasen.github.io`.
+
 Legacy note: an older doc referenced project `kaiffjdbfjkjqisumklh`. Use **your** project ref in `.project-ref` instead.

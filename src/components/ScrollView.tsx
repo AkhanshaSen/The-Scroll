@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import { authRedirectUrl } from '../lib/authRedirect.ts'
 import { supabase, supabaseConfigured } from '../lib/supabase.ts'
 
 type ViewState =
@@ -92,7 +93,7 @@ export function ScrollView({ token }: { token: string }) {
     setSignupStatus('')
     const { error } = await supabase.auth.signInWithOtp({
       email: signupEmail.trim(),
-      options: { emailRedirectTo: window.location.origin },
+      options: { emailRedirectTo: authRedirectUrl() },
     })
     setSignupBusy(false)
     if (error) setSignupStatus(error.message)

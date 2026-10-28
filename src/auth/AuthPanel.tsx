@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import type { Session } from '@supabase/supabase-js'
+import { authRedirectUrl } from '../lib/authRedirect.ts'
 import { supabase, supabaseConfigured } from '../lib/supabase.ts'
 
 type AuthPanelProps = {
@@ -27,7 +28,7 @@ export function AuthPanel({ session }: AuthPanelProps) {
     setStatus('')
     const { error } = await supabase.auth.signInWithOtp({
       email: email.trim(),
-      options: { emailRedirectTo: window.location.origin },
+      options: { emailRedirectTo: authRedirectUrl() },
     })
     setBusy(false)
     if (error) setStatus(error.message)

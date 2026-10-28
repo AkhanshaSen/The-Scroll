@@ -1,26 +1,91 @@
 import { toPng } from 'html-to-image'
 import { jsPDF } from 'jspdf'
 
+/** Must stay under send-scroll Edge Function MAX_IMAGE_BASE64_LEN (2_500_000). */
+export const MAX_SEND_IMAGE_BASE64_LEN = 2_400_000
+
 export async function captureStage(): Promise<string> {
   const stage = document.querySelector('.stage')
   if (!(stage instanceof HTMLElement)) throw new Error('Open a roll before exporting.')
+  return captureElement(stage, { pixelRatio: 2 })
+}
+
+/**
+ * Capture only the parchment for email/view links — not rollers or ribbon.
+ * Downscales / converts to JPEG when the PNG would exceed the Edge Function size cap.
+ */
+export async function captureSheetForSend(): Promise<string> {
+  const sheet =
+    document.querySelector('.stage .sheet') ?? document.querySelector('.stage .sheet-wrap')
+  if (!(sheet instanceof HTMLElement)) {
+    throw new Error('Open a roll before sending. The paper could not be found.')
+  }
+
+  const stage = document.querySelector('.stage')
+  if (stage instanceof HTMLElement) stage.classList.add('is-capturing')
+
+  try {
+    let dataUrl = await captureElement(sheet, { pixelRatio: 1 })
+    if (dataUrl.length > MAX_SEND_IMAGE_BASE64_LEN) {
+      dataUrl = await shrinkForSend(dataUrl, 1200, 0.88)
+    }
+    if (dataUrl.length > MAX_SEND_IMAGE_BASE64_LEN) {
+      dataUrl = await shrinkForSend(dataUrl, 900, 0.78)
+    }
+    if (!dataUrl.startsWith('data:image/')) {
+      throw new Error('The paper image was not a valid image.')
+    }
+    if (dataUrl.length > MAX_SEND_IMAGE_BASE64_LEN) {
+      throw new Error(
+        'The paper image is too large to send (~2.5MB). Shorten the scroll or remove large drawings, then try again.',
+      )
+    }
+    return dataUrl
+  } finally {
+    if (stage instanceof HTMLElement) stage.classList.remove('is-capturing')
+  }
+}
+
+async function captureElement(
+  el: HTMLElement,
+  options: { pixelRatio: number },
+): Promise<string> {
   // The grain filter is an SVG turbulence. Leaving it in the tree makes the
   // capture image stay blank, or never finish, so it is lifted out and put back.
-  const parked = [...stage.querySelectorAll('.grain')].map((node) => ({
+  const root = el.closest('.stage') ?? el
+  const parked = [...root.querySelectorAll('.grain')].map((node) => ({
     node,
     parent: node.parentNode,
     next: node.nextSibling,
   }))
-  stage.classList.add('is-capturing')
   for (const item of parked) item.node.remove()
   try {
-    return await toPng(stage, { pixelRatio: 2, cacheBust: true })
+    return await toPng(el, { pixelRatio: options.pixelRatio, cacheBust: true })
   } finally {
     for (const item of parked) {
       if (item.parent) item.parent.insertBefore(item.node, item.next)
     }
-    stage.classList.remove('is-capturing')
   }
+}
+
+async function shrinkForSend(
+  dataUrl: string,
+  maxWidth: number,
+  jpegQuality: number,
+): Promise<string> {
+  const image = await loadImage(dataUrl)
+  const scale = Math.min(1, maxWidth / Math.max(image.width, 1))
+  const width = Math.max(1, Math.round(image.width * scale))
+  const height = Math.max(1, Math.round(image.height * scale))
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = height
+  const ctx = canvas.getContext('2d')
+  if (!ctx) throw new Error('The paper image could not be resized.')
+  ctx.fillStyle = '#fdf8ee'
+  ctx.fillRect(0, 0, width, height)
+  ctx.drawImage(image, 0, 0, width, height)
+  return canvas.toDataURL('image/jpeg', jpegQuality)
 }
 
 export async function downloadPdf(dataUrl: string, title: string) {

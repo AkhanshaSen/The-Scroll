@@ -117,8 +117,22 @@ Deno.serve(async (request) => {
     if (recipients.length === 0) {
       return json({ error: 'At least one valid email address is required.' }, 400, corsHeaders)
     }
-    if (!imageBase64.startsWith('data:image/') || imageBase64.length > MAX_IMAGE_BASE64_LEN) {
-      return json({ error: 'The paper image could not be prepared.' }, 400, corsHeaders)
+    if (!imageBase64.startsWith('data:image/')) {
+      return json(
+        { error: 'The paper image is missing or invalid. Try Fold and send again with the scroll open.' },
+        400,
+        corsHeaders,
+      )
+    }
+    if (imageBase64.length > MAX_IMAGE_BASE64_LEN) {
+      return json(
+        {
+          error:
+            'The paper image is too large to send (~2.5MB). Shorten the scroll or remove large drawings, then try again.',
+        },
+        400,
+        corsHeaders,
+      )
     }
 
     const fromLabel = senderDisplayName || senderEmail || 'Someone'

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { Desk } from './components/Desk.tsx'
 import type { ScrollPhase } from './components/Scroll.tsx'
-import { captureStage, downloadPdf, printSheet } from './exportSheet.ts'
+import { captureSheetForSend, captureStage, downloadPdf, printSheet } from './exportSheet.ts'
 import { supabase } from './lib/supabase.ts'
 import {
   addScrap,
@@ -155,17 +155,18 @@ export default function App() {
     const senderDisplayName =
       payload.senderDisplayName?.trim() ||
       (session?.user.is_anonymous ? senderDisplayNameRef.current : undefined)
-    console.log('[scroll:send] attempt', {
-      scrollId: open.id,
-      recipients: payload.recipients,
-      title,
-      from: session?.user.email ?? null,
-      senderDisplayName: senderDisplayName || null,
-      guest: Boolean(session?.user.is_anonymous),
-    })
     try {
       await upsertScroll(open)
-      const image = payload.imageBase64 ?? (await captureStage())
+      const image = payload.imageBase64 ?? (await captureSheetForSend())
+      console.log('[scroll:send] attempt', {
+        scrollId: open.id,
+        recipients: payload.recipients,
+        title,
+        from: session?.user.email ?? null,
+        senderDisplayName: senderDisplayName || null,
+        guest: Boolean(session?.user.is_anonymous),
+        imageBytes: image.length,
+      })
       const minSealMs = reducedMotion() ? 0 : 1350
       const flyAwayMs = reducedMotion() ? 200 : 750
       await Promise.all([
@@ -399,7 +400,7 @@ export default function App() {
     setBusy('send')
     setSendDone(false)
     try {
-      const imageBase64 = await captureStage()
+      const imageBase64 = await captureSheetForSend()
       sendPayloadRef.current = {
         recipients,
         note,
@@ -417,10 +418,14 @@ export default function App() {
       }
       phaseRef.current = 'folding'
       setPhase('folding')
-    } catch {
+    } catch (error) {
       setBusy(null)
       sendPayloadRef.current = null
-      window.alert('The paper could not be prepared. Try again with the roll open.')
+      const message =
+        error instanceof Error && error.message.trim()
+          ? error.message
+          : 'The paper could not be prepared. Try again with the roll open.'
+      window.alert(message)
     }
   }
 

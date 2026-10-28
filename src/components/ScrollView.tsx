@@ -21,12 +21,9 @@ type ViewState =
   | ({ stage: 'reading' } & ScrollPayload)
   | { stage: 'signup'; title: string }
 
-function senderLabel(payload: Pick<ScrollPayload, 'senderEmail' | 'senderDisplayName'>): string {
+function senderLabel(payload: Pick<ScrollPayload, 'senderDisplayName'>): string {
   const name = payload.senderDisplayName.trim()
-  if (name) return name
-  const email = payload.senderEmail.trim()
-  if (email) return email.split('@')[0] || email
-  return ''
+  return name || 'Someone'
 }
 
 export function ScrollView({ token }: { token: string }) {

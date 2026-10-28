@@ -45,7 +45,11 @@ type DeskProps = {
   onCloseSend: () => void
   onCloseSendGate: () => void
   onSendGateReady: (result: SendGateReady) => void
-  onConfirmSend: (recipients: MailRecipient[], note: string) => void | Promise<void>
+  onConfirmSend: (
+    recipients: MailRecipient[],
+    note: string,
+    senderDisplayName: string,
+  ) => void | Promise<void>
   onDuplicate: () => void
   onDelete: () => void
   onPen: () => void

@@ -25,7 +25,7 @@ type SendSheetProps = {
   senderDisplayName: string
   isGuest: boolean
   onClose: () => void
-  onSend: (recipients: MailRecipient[], note: string) => void
+  onSend: (recipients: MailRecipient[], note: string, senderDisplayName: string) => void
   onChangeSenderName?: (name: string) => void
   onRequestSignIn?: () => void
 }
@@ -51,8 +51,9 @@ export function SendSheet({
 }: SendSheetProps) {
   const [rows, setRows] = useState<Row[]>(() => [newRow(defaultRecipientEmail())])
   const [note, setNote] = useState('')
-  const [editingName, setEditingName] = useState(false)
+  const [editingName, setEditingName] = useState(!isValidDisplayName(senderDisplayName))
   const [nameDraft, setNameDraft] = useState(senderDisplayName)
+  const [nameError, setNameError] = useState(false)
 
   if (!open) return null
 
@@ -63,7 +64,15 @@ export function SendSheet({
   function submit(event: FormEvent) {
     event.preventDefault()
     if (busy || !hasContent || validRecipients.length === 0) return
-    onSend(validRecipients, note.trim())
+    const clean = sanitizeDisplayName(editingName ? nameDraft : senderDisplayName || nameDraft)
+    if (!isValidDisplayName(clean)) {
+      setNameError(true)
+      setEditingName(true)
+      return
+    }
+    setNameError(false)
+    onChangeSenderName?.(clean)
+    onSend(validRecipients, note.trim(), clean)
   }
 
   function updateRow(id: string, patch: Partial<Pick<Row, 'email' | 'category'>>) {
@@ -76,8 +85,12 @@ export function SendSheet({
 
   function saveName() {
     const clean = sanitizeDisplayName(nameDraft)
-    if (!isValidDisplayName(clean) || !onChangeSenderName) return
+    if (!isValidDisplayName(clean) || !onChangeSenderName) {
+      setNameError(true)
+      return
+    }
     onChangeSenderName(clean)
+    setNameError(false)
     setEditingName(false)
   }
 
@@ -100,50 +113,59 @@ export function SendSheet({
           <strong>{defaultRecipientEmail()}</strong> (pre-filled below).
         </p>
 
-        {isGuest && (
-          <div className="send-as-row">
-            {editingName ? (
-              <>
-                <label className="field send-as-edit">
-                  <span>Sending as</span>
-                  <input
-                    type="text"
-                    maxLength={40}
-                    value={nameDraft}
-                    disabled={busy}
-                    onChange={(event) => setNameDraft(event.target.value)}
-                  />
-                </label>
-                <button type="button" className="send-as-link" disabled={busy} onClick={saveName}>
-                  Save
+        <div className="send-as-row">
+          {editingName ? (
+            <>
+              <label className="field send-as-edit">
+                <span>Your name (shown to recipients)</span>
+                <input
+                  type="text"
+                  maxLength={40}
+                  value={nameDraft}
+                  disabled={busy}
+                  autoFocus
+                  aria-invalid={nameError}
+                  placeholder="How you want to be signed"
+                  onChange={(event) => {
+                    setNameDraft(event.target.value)
+                    setNameError(false)
+                  }}
+                />
+              </label>
+              <button type="button" className="send-as-link" disabled={busy} onClick={saveName}>
+                Save
+              </button>
+            </>
+          ) : (
+            <>
+              <p className="send-as-label">
+                Sending as <strong>{senderDisplayName || '…'}</strong>
+              </p>
+              {onChangeSenderName && (
+                <button
+                  type="button"
+                  className="send-as-link"
+                  disabled={busy}
+                  onClick={() => {
+                    setNameDraft(senderDisplayName)
+                    setEditingName(true)
+                  }}
+                >
+                  Change name
                 </button>
-              </>
-            ) : (
-              <>
-                <p className="send-as-label">
-                  Sending as <strong>{senderDisplayName || 'Guest'}</strong>
-                </p>
-                {onChangeSenderName && (
-                  <button
-                    type="button"
-                    className="send-as-link"
-                    disabled={busy}
-                    onClick={() => {
-                      setNameDraft(senderDisplayName)
-                      setEditingName(true)
-                    }}
-                  >
-                    Change name
-                  </button>
-                )}
-                {onRequestSignIn && (
-                  <button type="button" className="send-as-link" disabled={busy} onClick={onRequestSignIn}>
-                    Sign in
-                  </button>
-                )}
-              </>
-            )}
-          </div>
+              )}
+              {isGuest && onRequestSignIn && (
+                <button type="button" className="send-as-link" disabled={busy} onClick={onRequestSignIn}>
+                  Sign in
+                </button>
+              )}
+            </>
+          )}
+        </div>
+        {nameError && (
+          <p className="send-name-error" role="alert">
+            Enter a display name (2–40 characters). Recipients see this name, not your email.
+          </p>
         )}
 
         <div className="recipient-list" aria-label="Recipients">

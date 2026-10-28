@@ -1622,6 +1622,13 @@ button.wax-envelope {
   cursor: default;
 }
 
+.send-name-error {
+  margin: -6px 0 12px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #8c2e1a;
+}
+
 .congrats-card {
   width: min(420px, 100%);
   background:

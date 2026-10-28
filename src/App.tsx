@@ -33,7 +33,6 @@ import {
 } from './components/WelcomeEmailDialog.tsx'
 import {
   allowGuestSend,
-  clearGuestDisplayName,
   defaultSenderName,
   loadGuestDisplayName,
   saveGuestDisplayName,
@@ -87,30 +86,19 @@ export default function App() {
     }
     void supabase.auth.getSession().then(({ data }) => {
       setSession(data.session)
-      if (data.session?.user && !data.session.user.is_anonymous) {
-        clearGuestDisplayName()
-        setGuestDisplayName('')
-        senderDisplayNameRef.current = ''
-      } else {
-        const name = loadGuestDisplayName()
-        saveGuestDisplayName(name)
-        setGuestDisplayName(name)
-        senderDisplayNameRef.current = name
-      }
+      const name = loadGuestDisplayName()
+      setGuestDisplayName(name)
+      senderDisplayNameRef.current = name
       setAuthReady(true)
     })
     const { data } = supabase.auth.onAuthStateChange((_event, next) => {
       setSession(next)
       if (next?.user && !next.user.is_anonymous) {
-        clearGuestDisplayName()
-        setGuestDisplayName('')
-        senderDisplayNameRef.current = ''
         setWelcomeEmailOpen(false)
-      } else if (!next || next.user.is_anonymous) {
-        const name = loadGuestDisplayName()
-        setGuestDisplayName(name)
-        senderDisplayNameRef.current = name
       }
+      const name = loadGuestDisplayName()
+      setGuestDisplayName(name)
+      senderDisplayNameRef.current = name
     })
     return () => data.subscription.unsubscribe()
   }, [])
@@ -183,8 +171,7 @@ export default function App() {
     const title = displayTitle(open)
     const emails = payload.recipients.map((item) => item.email)
     const senderDisplayName =
-      payload.senderDisplayName?.trim() ||
-      (session?.user.is_anonymous ? senderDisplayNameRef.current : undefined)
+      payload.senderDisplayName?.trim() || senderDisplayNameRef.current || guestDisplayName
     try {
       await upsertScroll(open)
       const image = payload.imageBase64 ?? (await captureSheetForSend())
@@ -411,8 +398,14 @@ export default function App() {
     senderDisplayNameRef.current = name
   }
 
-  async function confirmSend(recipients: MailRecipient[], note: string) {
+  async function confirmSend(recipients: MailRecipient[], note: string, senderDisplayName: string) {
     if (!open || phase !== 'open' || busy || !scrollHasContent(open)) return
+    const cleanName = senderDisplayName.trim()
+    if (cleanName) {
+      saveGuestDisplayName(cleanName)
+      setGuestDisplayName(cleanName)
+      senderDisplayNameRef.current = cleanName
+    }
     setSendOpen(false)
     setPen(false)
     setBusy('send')
@@ -423,9 +416,7 @@ export default function App() {
         recipients,
         note,
         imageBase64,
-        senderDisplayName: session?.user.is_anonymous
-          ? senderDisplayNameRef.current || guestDisplayName
-          : undefined,
+        senderDisplayName: cleanName || senderDisplayNameRef.current || guestDisplayName,
       }
       setBusy(null)
       if (reducedMotion()) {

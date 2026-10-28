@@ -112,6 +112,8 @@ To enable later (all three required):
 3. Edge Function secret `ALLOW_GUEST_SEND=true`, then redeploy `send-scroll`.
 4. Guests pick a **display name** used in the email “From” line; magic-link sign-in still available.
 
+Scroll letters show the sender’s **display name** only in subject and body (never their email). Signed-in users are asked for a name on the Send sheet too. Resend **Reply-To** still uses the account email so recipients can reply.
+
 See [SECURITY.md](SECURITY.md) for the full free personal checklist.
 
 ## GitHub Pages (production)

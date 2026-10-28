@@ -107,8 +107,12 @@ Deno.serve(async (request) => {
     const senderDisplayName = sanitizeDisplayName(body.senderDisplayName ?? '')
     const recipients = parseRecipients(body)
 
-    if (isAnonymous && !senderDisplayName) {
-      return json({ error: 'Enter a sender name to send as a guest.' }, 400, corsHeaders)
+    if (!senderDisplayName || senderDisplayName.length < 2) {
+      return json(
+        { error: 'Enter a sender name. Recipients see this name, not your email.' },
+        400,
+        corsHeaders,
+      )
     }
 
     if (!scrollId || !UUID_RE.test(scrollId)) {
@@ -135,12 +139,12 @@ Deno.serve(async (request) => {
       )
     }
 
-    const fromLabel = senderDisplayName || senderEmail || 'Someone'
+    const fromLabel = senderDisplayName
 
     log('SEND_ATTEMPT', {
       userId: user.id,
       userEmail: senderEmail || null,
-      senderDisplayName: senderDisplayName || null,
+      senderDisplayName,
       guest: isAnonymous,
       scrollId,
       recipientCount: recipients.length,
@@ -201,7 +205,6 @@ Deno.serve(async (request) => {
         title,
         note,
         fromLabel,
-        senderEmail,
         viewUrl,
         imageBase64,
       })

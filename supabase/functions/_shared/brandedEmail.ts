@@ -82,14 +82,11 @@ export function buildScrollEmailHtml(opts: {
   title: string
   note: string
   fromLabel: string
-  senderEmail: string
   viewUrl: string
   imageBase64: string
 }): string {
-  const { title, note, fromLabel, senderEmail, viewUrl, imageBase64 } = opts
-  const fromLine = senderEmail
-    ? `From: <strong style="color:#fdf4e3;">${escapeHtml(fromLabel)}</strong> · ${escapeHtml(senderEmail)}`
-    : `From: <strong style="color:#fdf4e3;">${escapeHtml(fromLabel)}</strong>`
+  const { title, note, fromLabel, viewUrl, imageBase64 } = opts
+  const fromLine = `From: <strong style="color:#fdf4e3;">${escapeHtml(fromLabel)}</strong>`
   const noteBlock = note
     ? `<table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin:0 0 24px;">
         <tr>

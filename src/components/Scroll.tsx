@@ -39,7 +39,7 @@ export function OpenScroll({ phase, onPhaseEnd, scroll, ...sheet }: OpenProps) {
     if (phase === 'open' || phase === 'envelope') return
     if (phase === 'folding') {
       const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-      const wait = reduced ? 0 : 1600
+      const wait = reduced ? 0 : 550
       const timer = window.setTimeout(() => onPhaseEnd('folding'), wait)
       return () => window.clearTimeout(timer)
     }
@@ -60,7 +60,7 @@ export function OpenScroll({ phase, onPhaseEnd, scroll, ...sheet }: OpenProps) {
       finish()
     }
     el.addEventListener('transitionend', onEnd)
-    const fallback = window.setTimeout(finish, 1600)
+    const fallback = window.setTimeout(finish, 950)
     return () => {
       settled = true
       el.removeEventListener('transitionend', onEnd)

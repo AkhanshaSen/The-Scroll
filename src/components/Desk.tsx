@@ -163,7 +163,7 @@ export function Desk({
                 onCommitStroke={onCommitStroke}
               />
               <EnvelopeScene
-                active={phase === 'envelope'}
+                active={phase === 'folding' || phase === 'envelope'}
                 sent={sendDone}
                 title={open.title || open.words.slice(0, 42) || 'A scroll'}
               />

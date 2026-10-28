@@ -84,7 +84,7 @@ export function ScrollView({ token }: { token: string }) {
     }
   }, [token])
 
-  // Gentle auto-open after 2.2s if the guest hasn't tapped
+  // Gentle auto-open after 1.2s if the guest hasn't tapped
   useEffect(() => {
     if (state.stage !== 'envelope') return
     const { title, note, senderEmail, senderDisplayName, imageBase64 } = state
@@ -99,7 +99,7 @@ export function ScrollView({ token }: { token: string }) {
           senderDisplayName,
           imageBase64,
         }),
-      reduced ? 200 : 2200,
+      reduced ? 200 : 1200,
     )
     return () => window.clearTimeout(timer)
   }, [state])
@@ -119,7 +119,7 @@ export function ScrollView({ token }: { token: string }) {
           senderDisplayName,
           imageBase64,
         }),
-      reduced ? 200 : 1800,
+      reduced ? 200 : 1050,
     )
     return () => window.clearTimeout(timer)
   }, [state])

@@ -288,8 +288,8 @@ button.write:disabled { cursor: not-allowed; }
   transform-style: preserve-3d;
   filter: drop-shadow(0 10px 14px rgba(20, 10, 4, 0.32));
   transition:
-    transform 1.45s cubic-bezier(0.22, 1, 0.32, 1),
-    filter 1.2s ease;
+    transform 0.85s cubic-bezier(0.22, 1, 0.32, 1),
+    filter 0.7s ease;
 }
 
 .scroll-roller-top { margin-bottom: -18px; }
@@ -305,7 +305,7 @@ button.write:disabled { cursor: not-allowed; }
 .scroll-roller-spin {
   transform-box: fill-box;
   transform-origin: center;
-  transition: transform 1.45s cubic-bezier(0.22, 1, 0.32, 1);
+  transition: transform 0.85s cubic-bezier(0.22, 1, 0.32, 1);
 }
 
 .stage.is-spread .scroll-roller-top {
@@ -324,7 +324,7 @@ button.write:disabled { cursor: not-allowed; }
 
 .stage.is-unrolling .scroll-roller-bottom .scroll-roller-spin,
 .stage.is-rolling-up .scroll-roller-bottom .scroll-roller-spin {
-  animation: roller-spin 1.45s cubic-bezier(0.22, 1, 0.32, 1) both;
+  animation: roller-spin 0.85s cubic-bezier(0.22, 1, 0.32, 1) both;
 }
 
 .stage.is-rolling-up .scroll-roller-bottom .scroll-roller-spin {
@@ -332,7 +332,7 @@ button.write:disabled { cursor: not-allowed; }
 }
 
 .stage.is-unrolling .scroll-roller-top .scroll-roller-spin {
-  animation: roller-spin-soft 1.45s cubic-bezier(0.22, 1, 0.32, 1) both;
+  animation: roller-spin-soft 0.85s cubic-bezier(0.22, 1, 0.32, 1) both;
 }
 
 @keyframes roller-spin {
@@ -356,8 +356,8 @@ button.write:disabled { cursor: not-allowed; }
   margin-left: -24px;
   pointer-events: none;
   transition:
-    opacity 0.55s ease,
-    transform 0.7s cubic-bezier(0.22, 1, 0.32, 1);
+    opacity 0.35s ease,
+    transform 0.45s cubic-bezier(0.22, 1, 0.32, 1);
 }
 
 .silk-ribbon-svg {
@@ -391,7 +391,7 @@ button.write:disabled { cursor: not-allowed; }
 }
 
 .stage.is-folding .silk-ribbon {
-  animation: ribbon-cinch 0.6s 0.7s ease both;
+  animation: ribbon-cinch 0.35s 0.2s ease both;
 }
 
 @keyframes ribbon-cinch {
@@ -439,7 +439,7 @@ button.write:disabled { cursor: not-allowed; }
 .clip {
   display: grid;
   grid-template-rows: 0fr;
-  transition: grid-template-rows 1.45s cubic-bezier(0.22, 1, 0.32, 1);
+  transition: grid-template-rows 0.85s cubic-bezier(0.22, 1, 0.32, 1);
 }
 
 .stage.is-spread { filter: drop-shadow(0 22px 28px rgba(20, 10, 4, 0.32)); }
@@ -484,7 +484,7 @@ button.write:disabled { cursor: not-allowed; }
 
 .sheet-wrap {
   transform-origin: top center;
-  transition: transform 1.45s cubic-bezier(0.22, 1, 0.32, 1);
+  transition: transform 0.85s cubic-bezier(0.22, 1, 0.32, 1);
 }
 
 .stage.is-spread .sheet-wrap { transform: scaleY(1); }
@@ -1082,11 +1082,11 @@ button:focus-visible, .scrap-text:focus-visible, input:focus-visible, textarea:f
 
 .stage.is-folding .sheet-wrap {
   transform-origin: center center;
-  animation: paper-roll-into-envelope 1.5s cubic-bezier(0.4, 0.05, 0.25, 1) forwards;
+  animation: paper-roll-into-envelope 0.55s cubic-bezier(0.4, 0.05, 0.25, 1) forwards;
 }
 
 .stage.is-folding .scroll-roller {
-  transition: opacity 0.55s ease, transform 1.2s cubic-bezier(0.4, 0.05, 0.25, 1);
+  transition: opacity 0.35s ease, transform 0.5s cubic-bezier(0.4, 0.05, 0.25, 1);
 }
 
 .stage.is-folding .scroll-roller-top {
@@ -1144,9 +1144,9 @@ button:focus-visible, .scrap-text:focus-visible, input:focus-visible, textarea:f
   display: grid;
   place-items: center;
   place-content: center;
-  gap: 28px;
+  gap: 20px;
   pointer-events: none;
-  animation: envelope-scene-in 0.5s ease;
+  animation: envelope-scene-in 0.32s ease;
 }
 
 .envelope-caption {
@@ -1185,6 +1185,9 @@ button.wax-envelope {
 .wax-envelope-stage {
   perspective: 1100px;
   width: min(320px, 82vw);
+  /* Headroom so an open flap never covers the caption above */
+  padding-top: 72px;
+  margin-top: -8px;
 }
 
 .wax-envelope-body {
@@ -1207,20 +1210,25 @@ button.wax-envelope {
 }
 
 .wax-env-letter-slot {
+  /* Extends above the pocket so the letter can rise out / slide in from above */
   position: absolute;
-  inset: 0;
-  z-index: 2;
+  left: 0;
+  right: 0;
+  top: -95%;
+  height: 195%;
+  z-index: 4;
   overflow: hidden;
-  border-radius: 6px;
-  clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+  border-radius: 0 0 6px 6px;
+  pointer-events: none;
 }
 
 .wax-env-letter {
   position: absolute;
   left: 12%;
   right: 12%;
-  top: 8%;
-  height: 70%;
+  /* Pocket starts at 95/195 of the tall slot; original top 8% / height 70% of body */
+  top: 52.8%;
+  height: 35.9%;
   transform-origin: center bottom;
   transform-style: preserve-3d;
 }
@@ -1289,6 +1297,7 @@ button.wax-envelope {
   z-index: 5;
   transform-origin: top center;
   transform-style: preserve-3d;
+  transition: z-index 0s linear 0.28s;
 }
 
 .wax-env-flap-face {
@@ -1330,36 +1339,39 @@ button.wax-envelope {
   display: block;
 }
 
-/* Sealing (sender) */
+/* Sealing (sender) — flap starts open (behind letter), closes over pocket */
 .wax-envelope-sealing .wax-env-flap {
-  animation: wax-flap-close 0.7s 0.45s cubic-bezier(0.4, 0.05, 0.2, 1) forwards;
+  z-index: 1;
   transform: rotateX(165deg);
+  animation:
+    wax-flap-close 0.48s 0.28s cubic-bezier(0.4, 0.05, 0.2, 1) forwards,
+    wax-flap-front 0s 0.52s forwards;
 }
 
 .wax-envelope-sealing .wax-env-letter {
-  animation: wax-letter-tuck 0.85s cubic-bezier(0.33, 0.1, 0.2, 1) forwards;
+  animation: wax-letter-tuck 0.55s cubic-bezier(0.33, 0.1, 0.2, 1) forwards;
 }
 
 .wax-envelope-sealing .wax-env-seal {
   opacity: 0;
   transform: scale(0.35) translateY(-18px);
-  animation: wax-seal-stamp 0.5s 0.95s cubic-bezier(0.2, 1.4, 0.3, 1) forwards;
+  animation: wax-seal-stamp 0.38s 0.62s cubic-bezier(0.2, 1.4, 0.3, 1) forwards;
 }
 
 .wax-envelope-sealing .wax-envelope-body {
-  animation: wax-rise-in 0.5s ease both;
+  animation: wax-rise-in 0.35s 0.12s ease both;
 }
 
 /* Sent fly-away */
-.wax-envelope-sent .wax-env-flap { transform: rotateX(0deg); }
+.wax-envelope-sent .wax-env-flap { transform: rotateX(0deg); z-index: 5; }
 .wax-envelope-sent .wax-env-letter { transform: translateY(18%) scale(0.92); }
 .wax-envelope-sent .wax-env-seal { opacity: 1; transform: scale(1); }
 .wax-envelope-sent .wax-envelope-body {
-  animation: wax-fly-away 0.75s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  animation: wax-fly-away 0.45s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
 /* Sealed idle (recipient) */
-.wax-envelope-sealed .wax-env-flap { transform: rotateX(0deg); }
+.wax-envelope-sealed .wax-env-flap { transform: rotateX(0deg); z-index: 5; }
 .wax-envelope-sealed .wax-env-letter { transform: translateY(18%) scale(0.92); }
 .wax-envelope-sealed .wax-env-seal {
   animation: wax-seal-pulse 2.4s ease-in-out infinite;
@@ -1368,26 +1380,29 @@ button.wax-envelope {
   animation: wax-idle-float 3.2s ease-in-out infinite;
 }
 
-/* Opening (recipient) */
+/* Opening (recipient) — seal pop, flap open behind letter, letter rises */
 .wax-envelope-opening .wax-env-seal {
-  animation: wax-seal-break 0.4s ease forwards;
+  animation: wax-seal-break 0.28s ease forwards;
 }
 .wax-envelope-opening .wax-env-flap {
+  z-index: 5;
   transform: rotateX(0deg);
-  animation: wax-flap-open 0.7s 0.25s cubic-bezier(0.4, 0.05, 0.2, 1) forwards;
+  animation:
+    wax-flap-open 0.43s 0.12s cubic-bezier(0.4, 0.05, 0.2, 1) forwards,
+    wax-flap-back 0s 0.34s forwards;
 }
 .wax-envelope-opening .wax-env-letter {
   transform: translateY(18%) scale(0.92);
-  animation: wax-letter-rise 0.85s 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+  animation: wax-letter-rise 0.6s 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
 }
 
 @keyframes wax-rise-in {
-  from { opacity: 0; transform: translateY(28px) scale(0.94); }
+  from { opacity: 0; transform: translateY(20px) scale(0.96); }
   to { opacity: 1; transform: none; }
 }
 
 @keyframes wax-letter-tuck {
-  from { transform: translateY(-38%) scale(0.96); opacity: 0.55; }
+  from { transform: translateY(-95%) scale(0.96); opacity: 0.7; }
   to { transform: translateY(18%) scale(0.92); opacity: 1; }
 }
 
@@ -1399,6 +1414,14 @@ button.wax-envelope {
 @keyframes wax-flap-open {
   from { transform: rotateX(0deg); }
   to { transform: rotateX(165deg); }
+}
+
+@keyframes wax-flap-front {
+  to { z-index: 5; }
+}
+
+@keyframes wax-flap-back {
+  to { z-index: 1; }
 }
 
 @keyframes wax-seal-stamp {
@@ -1419,7 +1442,7 @@ button.wax-envelope {
 
 @keyframes wax-letter-rise {
   from { transform: translateY(18%) scale(0.92); }
-  to { transform: translateY(-48%) scale(1.05); }
+  to { transform: translateY(-100%) scale(1.04); }
 }
 
 @keyframes wax-idle-float {
@@ -1429,7 +1452,7 @@ button.wax-envelope {
 
 @keyframes wax-fly-away {
   0% { opacity: 1; transform: translateY(0) scale(1) rotate(-2deg); }
-  100% { opacity: 0; transform: translateY(-48px) scale(0.86) rotate(8deg); }
+  100% { opacity: 0; transform: translateY(-36px) scale(0.88) rotate(6deg); }
 }
 
 .send-backdrop {
@@ -1996,24 +2019,24 @@ button.wax-envelope {
 }
 
 .sv-unroll {
-  animation: sv-scroll-unroll 1.55s cubic-bezier(0.22, 1, 0.32, 1) forwards;
+  animation: sv-scroll-unroll 0.9s cubic-bezier(0.22, 1, 0.32, 1) forwards;
   transform-origin: top center;
 }
 
 .sv-unroll .sv-paper-wrap {
-  animation: sv-paper-reveal 1.55s cubic-bezier(0.22, 1, 0.32, 1) forwards;
+  animation: sv-paper-reveal 0.9s cubic-bezier(0.22, 1, 0.32, 1) forwards;
 }
 
 .sv-unroll .scroll-roller-bottom {
-  animation: sv-rod-drop 1.55s cubic-bezier(0.22, 1, 0.32, 1) forwards;
+  animation: sv-rod-drop 0.9s cubic-bezier(0.22, 1, 0.32, 1) forwards;
 }
 
 .sv-unroll .scroll-roller-bottom .scroll-roller-spin {
-  animation: roller-spin 1.55s cubic-bezier(0.22, 1, 0.32, 1) both;
+  animation: roller-spin 0.9s cubic-bezier(0.22, 1, 0.32, 1) both;
 }
 
 .sv-unroll .scroll-roller-top {
-  animation: sv-rod-rise 1.55s cubic-bezier(0.22, 1, 0.32, 1) forwards;
+  animation: sv-rod-rise 0.9s cubic-bezier(0.22, 1, 0.32, 1) forwards;
 }
 
 @keyframes sv-scroll-unroll {
@@ -2292,7 +2315,7 @@ button.wax-envelope {
   .wax-envelope-sealed .wax-env-letter,
   .wax-envelope-sent .wax-env-letter { transform: translateY(18%) scale(0.92); }
 
-  .wax-envelope-opening .wax-env-letter { transform: translateY(-40%) scale(1); }
+  .wax-envelope-opening .wax-env-letter { transform: translateY(-100%) scale(1); }
 
   .wax-envelope-sealing .wax-env-seal,
   .wax-envelope-sealed .wax-env-seal,

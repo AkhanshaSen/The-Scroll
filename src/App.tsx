@@ -172,8 +172,8 @@ export default function App() {
         guest: Boolean(session?.user.is_anonymous),
         imageBytes: image.length,
       })
-      const minSealMs = reducedMotion() ? 0 : 1350
-      const flyAwayMs = reducedMotion() ? 200 : 750
+      const minSealMs = reducedMotion() ? 0 : 900
+      const flyAwayMs = reducedMotion() ? 120 : 450
       await Promise.all([
         sendScrollMail({
           scrollId: open.id,
@@ -197,8 +197,10 @@ export default function App() {
         setSendDone(false)
         setBusy(null)
         pendingRef.current = null
-        phaseRef.current = 'closing'
-        setPhase('closing')
+        // Skip the slow roll-up — envelope already flew away
+        phaseRef.current = 'open'
+        setOpenId(null)
+        setPhase('open')
         setSentSummary({ title, recipients: emails })
       }, flyAwayMs)
     } catch (error) {
@@ -229,7 +231,7 @@ export default function App() {
       if (ended === 'folding') {
         phaseRef.current = 'envelope'
         setPhase('envelope')
-        void finishSend()
+        // Network + seal started when folding began (confirmSend)
         return
       }
       if (ended !== 'closing') return
@@ -245,7 +247,7 @@ export default function App() {
         setOpenId(null)
       }
     },
-    [finishSend],
+    [],
   )
 
   function update(id: string, recipe: (scroll: Scroll) => Scroll) {
@@ -423,8 +425,10 @@ export default function App() {
         void finishSend()
         return
       }
+      // Fold + envelope + mail request overlap for a snappier send
       phaseRef.current = 'folding'
       setPhase('folding')
+      void finishSend()
     } catch (error) {
       setBusy(null)
       sendPayloadRef.current = null

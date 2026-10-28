@@ -88,7 +88,9 @@ Scheduled daily backups need a paid Supabase plan. Free option: occasionally exp
 npm run security:audit
 ```
 
-Before treating a deploy as live, open Supabase **Security Advisor** (free) and skim findings.
+Before treating a deploy as live, open Supabase **Security Advisor** / **Database Linter** (free) and skim findings.
+
+Migration [`007_rls_initplan_and_fk_index.sql`](../supabase/migrations/007_rls_initplan_and_fk_index.sql) clears advisor lint `0003_auth_rls_initplan` (wrap `auth.uid()` as `(select auth.uid())` in RLS) and `0001_unindexed_foreign_keys` (`sends_scroll_id_idx`). An INFO unused-index note on `sends_user_visible_idx` is expected on a low-traffic personal desk — keep that index.
 
 ### Auth URLs
 

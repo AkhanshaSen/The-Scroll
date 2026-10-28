@@ -49,6 +49,7 @@ Also run:
 - [`../supabase/migrations/004_view_tokens.sql`](../supabase/migrations/004_view_tokens.sql) — `view_token` + `image_data` (required for email view links)
 - [`../supabase/migrations/005_sender_display_name.sql`](../supabase/migrations/005_sender_display_name.sql) — guest sender name on `sends`
 - [`../supabase/migrations/006_soft_delete.sql`](../supabase/migrations/006_soft_delete.sql) — `is_deleted` on `scrolls` and `sends` (desk hides rows; database keeps them)
+- [`../supabase/migrations/007_rls_initplan_and_fk_index.sql`](../supabase/migrations/007_rls_initplan_and_fk_index.sql) — RLS InitPlan fix + `sends(scroll_id)` index (Database Linter)
 
 **Resend:** set secret `SEND_FROM` to `Paper scroll studio <onboarding@resend.dev>`. Until you verify a domain, send only to your Resend account email.
 

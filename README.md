@@ -34,12 +34,17 @@ Full walkthrough: [docs/SUPABASE_SETUP.md](docs/SUPABASE_SETUP.md)
    - `SEND_FROM` — display name + address, e.g. `Paper scroll studio <onboarding@resend.dev>` (inbox shows **Paper scroll studio**; replies use `reply_to` = signed-in sender). With Resend’s test address you can only send **to your Resend signup email** until you verify a domain.
    - `ALLOWED_ORIGINS` (optional) — comma-separated CORS origins, e.g. `http://localhost:5173,https://akhanshasen.github.io`
    - `VIEW_BASE_URL` — base URL for recipient view links, e.g. `http://localhost:5173` (dev) or `https://akhanshasen.github.io/The-Scroll` (Pages)
-4. **Deploy the function:**
+4. **Deploy the functions:**
 
 ```bash
 npx supabase login
 npm run supabase:deploy-send
+npx supabase functions deploy auth-email --no-verify-jwt --project-ref YOUR_REF
+npx supabase db push
+npx supabase config push --yes
 ```
+
+Sign-in mail and sealed-scroll mail use the same parchment letter. After you tap a sign-in link, you stay signed in on that computer until you sign out. Thrown-away scrolls are soft-deleted (`is_deleted`) so they leave the desk but remain in the database.
 
 `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` are provided automatically to Edge Functions.
 

@@ -20,7 +20,16 @@ export function createScroll(): Scroll {
     strokes: [],
     created: Date.now(),
     updatedAt: Date.now(),
+    isDeleted: false,
   }
+}
+
+export function isVisibleScroll(scroll: Scroll): boolean {
+  return !scroll.isDeleted
+}
+
+export function visibleScrolls(scrolls: Scroll[]): Scroll[] {
+  return scrolls.filter(isVisibleScroll)
 }
 
 export function displayTitle(scroll: Scroll): string {
@@ -108,6 +117,7 @@ export function duplicateScroll(scroll: Scroll): Scroll {
       id: uid(),
       points: stroke.points.map((point) => ({ ...point })),
     })),
+    isDeleted: false,
   }
 }
 

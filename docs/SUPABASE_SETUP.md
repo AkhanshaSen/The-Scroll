@@ -47,8 +47,31 @@ Also run:
 
 - [`../supabase/migrations/003_multi_recipient.sql`](../supabase/migrations/003_multi_recipient.sql) — `category` + `sender_email` on `sends`
 - [`../supabase/migrations/004_view_tokens.sql`](../supabase/migrations/004_view_tokens.sql) — `view_token` + `image_data` (required for email view links)
+- [`../supabase/migrations/005_sender_display_name.sql`](../supabase/migrations/005_sender_display_name.sql) — guest sender name on `sends`
+- [`../supabase/migrations/006_soft_delete.sql`](../supabase/migrations/006_soft_delete.sql) — `is_deleted` on `scrolls` and `sends` (desk hides rows; database keeps them)
 
-**Resend:** set secret `SEND_FROM` to `Paper scroll studio <onboarding@resend.dev>`. Until you verify a domain, send only to your Resend account email. Scroll emails are separate from Supabase Auth magic-link emails.
+**Resend:** set secret `SEND_FROM` to `Paper scroll studio <onboarding@resend.dev>`. Until you verify a domain, send only to your Resend account email.
+
+## Branded emails (sign-in + sealed scroll)
+
+Recipient mail and sign-in mail share the same parchment / wax-seal letter.
+
+1. Deploy both Edge Functions (`send-scroll` and `auth-email`). `auth-email` must be deployed **with JWT verification off** (`--no-verify-jwt`).
+2. Set Edge secrets: `RESEND_API_KEY`, `SEND_FROM`, and `SEND_EMAIL_HOOK_SECRET` (`v1,whsec_` + a random base64 secret).
+3. Push Auth config so magic-link / confirm templates and the Send Email hook are used:
+   ```bash
+   npx supabase config push --project-ref YOUR_REF --yes
+   ```
+4. In the dashboard, confirm **Authentication → Hooks → Send Email** points at  
+   `https://YOUR_REF.supabase.co/functions/v1/auth-email`.
+
+Until a domain is verified, Resend can only deliver those letters to your Resend signup address.
+
+**Once you tap a sign-in letter, you stay signed in on that computer.** The session is stored in the browser and refreshed automatically. You do not need to confirm again until you tap **Sign out** (or clear site data).
+
+## Soft-delete
+
+Throwing a roll away sets `scrolls.is_deleted = true` (and matching `sends` rows). The desk and library hide them; SQL Editor still shows the rows. Recipients who already have a view link can still open the letter.
 
 ## Guest send (optional)
 

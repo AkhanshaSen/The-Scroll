@@ -10,7 +10,9 @@ export function loadDesk(): Scroll[] {
     const parsed: unknown = JSON.parse(raw)
     if (!Array.isArray(parsed)) return [createScroll()]
     const scrolls = parsed.map(sanitize).filter((scroll): scroll is Scroll => scroll !== null)
-    return scrolls.length ? scrolls : [createScroll()]
+    if (!scrolls.length) return [createScroll()]
+    if (!scrolls.some((scroll) => !scroll.isDeleted)) return [...scrolls, createScroll()]
+    return scrolls
   } catch {
     return [createScroll()]
   }
@@ -45,6 +47,7 @@ export function sanitizeScroll(value: unknown): Scroll | null {
     strokes: Array.isArray(value.strokes) ? value.strokes.map(sanitizeStroke).filter((item) => item !== null) : [],
     created,
     updatedAt: typeof value.updatedAt === 'number' ? value.updatedAt : created,
+    isDeleted: value.isDeleted === true,
   }
 }
 

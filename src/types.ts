@@ -95,6 +95,8 @@ export type Scroll = {
   strokes: Stroke[]
   created: number
   updatedAt: number
+  /** Soft-delete: hidden in the desk, kept in the database. */
+  isDeleted?: boolean
 }
 
 export function fontOf(id: FontId) {

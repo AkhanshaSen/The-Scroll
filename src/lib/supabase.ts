@@ -9,5 +9,11 @@ const apiKey = publishable?.trim() || anonLegacy?.trim()
 export const supabaseConfigured = Boolean(url && apiKey)
 
 export const supabase: SupabaseClient | null = supabaseConfigured
-  ? createClient(url!, apiKey!)
+  ? createClient(url!, apiKey!, {
+      auth: {
+          persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+      },
+    })
   : null

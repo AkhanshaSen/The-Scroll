@@ -31,7 +31,7 @@ export function AuthPanel({ session, guestDisplayName = '' }: AuthPanelProps) {
     const { error } = await requestMagicLink(email)
     setBusy(false)
     if (error) setStatus(error)
-    else setStatus('Check your email for a sign-in link.')
+    else setStatus('Look for a letter from Paper scroll studio. After you tap the seal, you stay signed in on this computer until you sign out.')
   }
 
   async function signOut() {
@@ -50,7 +50,7 @@ export function AuthPanel({ session, guestDisplayName = '' }: AuthPanelProps) {
       : (session.user.email ?? 'Signed in')
     return (
       <div className="auth-signed">
-        <span className="auth-email" title={isGuest ? 'Guest session' : (session.user.email ?? '')}>
+        <span className="auth-email" title={isGuest ? 'Guest session — stays on this computer until you sign out' : (session.user.email ?? 'Signed in on this computer')}>
           {label}
         </span>
         {isGuest && (
@@ -91,6 +91,9 @@ export function AuthPanel({ session, guestDisplayName = '' }: AuthPanelProps) {
       </button>
       {open && (
         <form className="auth-form" onSubmit={(event) => void requestLink(event)}>
+          <p className="auth-help">
+            We’ll send a one-time letter from Paper scroll studio. After you tap it, you stay signed in here until you sign out.
+          </p>
           <label>
             <span>Email</span>
             <input

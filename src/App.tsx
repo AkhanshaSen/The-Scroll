@@ -16,6 +16,7 @@ import {
   syncWordsToBlank,
   touchScroll,
   uid,
+  visibleScrolls,
   withTexture,
   writeFromWords,
 } from './model.ts'
@@ -102,7 +103,8 @@ export default function App() {
         if (cancelled) return
         setScrolls((local) => {
           const merged = mergeScrolls(local, remote)
-          return merged.length ? merged : local
+          if (!merged.length) return local
+          return visibleScrolls(merged).length ? merged : [...merged, createScroll()]
         })
       } catch {
         // Keep local cache if remote is unreachable.
@@ -112,6 +114,18 @@ export default function App() {
       cancelled = true
     }
   }, [session])
+
+  useEffect(() => {
+    if (!openId) return
+    const open = scrolls.find((scroll) => scroll.id === openId)
+    if (open?.isDeleted) {
+      pendingRef.current = null
+      phaseRef.current = 'open'
+      setOpenId(null)
+      setPhase('open')
+      setPen(false)
+    }
+  }, [scrolls, openId])
 
   useEffect(() => {
     saveDesk(scrolls)
@@ -282,14 +296,16 @@ export default function App() {
 
   function remove(id: string) {
     const scroll = scrolls.find((item) => item.id === id)
-    if (!scroll) return
+    if (!scroll || scroll.isDeleted) return
     const dirty = scroll.scraps.some((scrap) => scrap.text.trim()) || scroll.strokes.length > 0
     if (dirty && !window.confirm('Throw this roll away?')) return
-    const fallback = scrolls.length === 1 ? createScroll() : null
+    const remainingVisible = visibleScrolls(scrolls).filter((item) => item.id !== id)
+    const fallback = remainingVisible.length === 0 ? createScroll() : null
     setScrolls((current) => {
-      const next = current.filter((item) => item.id !== id)
-      if (next.length) return next
-      return fallback ? [fallback] : [createScroll()]
+      const next = current.map((item) =>
+        item.id === id ? { ...item, isDeleted: true, updatedAt: Date.now() } : item,
+      )
+      return fallback ? [...next, fallback] : next
     })
     if (session) void deleteRemoteScroll(id).catch(() => undefined)
     if (openId === id) {
@@ -407,9 +423,11 @@ export default function App() {
     }
   }
 
+  const deskScrolls = visibleScrolls(scrolls)
+
   return (
     <Desk
-      scrolls={scrolls}
+      scrolls={deskScrolls}
       openId={openId}
       phase={phase}
       pen={pen}

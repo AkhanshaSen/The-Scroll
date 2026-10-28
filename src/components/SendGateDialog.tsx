@@ -51,7 +51,7 @@ export function SendGateDialog({ open, onClose, onReady }: SendGateDialogProps) 
       setStatus(error)
       return
     }
-    setStatus('Check your email for a sign-in link. After you open it, come back and tap Send by mail again.')
+    setStatus('Look for a letter from Paper scroll studio. After you tap the seal you stay signed in on this computer — then tap Send by mail again.')
   }
 
   async function submitGuest(event: FormEvent) {
@@ -113,7 +113,9 @@ export function SendGateDialog({ open, onClose, onReady }: SendGateDialogProps) 
         {step === 'sign_in' && (
           <form onSubmit={(event) => void submitMagicLink(event)}>
             <h2 id="send-gate-title">Sign in with email</h2>
-            <p className="whisper">We’ll email you a one-time link. No password.</p>
+            <p className="whisper">
+              We’ll email a one-time letter from Paper scroll studio. No password. After you tap it, you stay signed in on this computer until you sign out.
+            </p>
             <label className="field">
               <span>Your email</span>
               <input

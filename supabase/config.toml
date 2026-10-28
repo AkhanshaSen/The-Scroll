@@ -18,3 +18,31 @@ additional_redirect_urls = [
   "https://akhanshasen.github.io/The-Scroll/",
   "https://akhanshasen.github.io/The-Scroll/**",
 ]
+
+[auth.email]
+enable_signup = true
+enable_confirmations = false
+
+[auth.email.template.magic_link]
+subject = "Your sign-in letter from Paper scroll studio"
+content_path = "./supabase/templates/magic_link.html"
+
+[auth.email.template.confirmation]
+subject = "Open your Paper scroll studio desk"
+content_path = "./supabase/templates/confirmation.html"
+
+[auth.email.template.recovery]
+subject = "Reset your Paper scroll studio desk"
+content_path = "./supabase/templates/recovery.html"
+
+[auth.email.template.email_change]
+subject = "Confirm your new Paper scroll studio address"
+content_path = "./supabase/templates/email_change.html"
+
+[auth.hook.send_email]
+enabled = true
+uri = "https://kaiffjdbfjkjqisumklh.supabase.co/functions/v1/auth-email"
+secrets = "env(SEND_EMAIL_HOOK_SECRET)"
+
+[functions.auth-email]
+verify_jwt = false

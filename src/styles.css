@@ -1648,7 +1648,7 @@ button.wax-envelope {
   top: calc(100% + 8px);
   right: 0;
   z-index: 25;
-  width: 260px;
+  width: 280px;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -1657,6 +1657,15 @@ button.wax-envelope {
   color: #3a2a1e;
   border-radius: 10px;
   box-shadow: 0 16px 32px rgba(20, 10, 4, 0.3);
+}
+
+.auth-help {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #7a624e;
+  text-transform: none;
+  letter-spacing: 0;
 }
 
 .auth-form label {

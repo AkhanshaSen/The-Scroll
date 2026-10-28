@@ -11,13 +11,14 @@ type ScrollRow = {
   form: string
   updated_at: string
   created_at: string
+  is_deleted?: boolean
 }
 
 export async function fetchScrollsForUser(): Promise<Scroll[]> {
   if (!supabase) return []
   const { data, error } = await supabase
     .from('scrolls')
-    .select('id, payload, title, form, updated_at, created_at')
+    .select('id, payload, title, form, updated_at, created_at, is_deleted')
     .order('updated_at', { ascending: false })
   if (error) throw error
   return (data as ScrollRow[] | null ?? [])
@@ -29,6 +30,7 @@ export async function fetchScrollsForUser(): Promise<Scroll[]> {
         id: row.id,
         updatedAt: Date.parse(row.updated_at) || scroll.updatedAt,
         created: Date.parse(row.created_at) || scroll.created,
+        isDeleted: row.is_deleted === true || scroll.isDeleted === true,
       }
     })
     .filter((scroll): scroll is Scroll => scroll !== null)
@@ -49,6 +51,7 @@ export async function upsertScroll(scroll: Scroll): Promise<void> {
       form: scroll.form,
       updated_at: new Date(scroll.updatedAt).toISOString(),
       created_at: new Date(scroll.created).toISOString(),
+      is_deleted: Boolean(scroll.isDeleted),
     },
     { onConflict: 'id' },
   )
@@ -58,7 +61,13 @@ export async function upsertScroll(scroll: Scroll): Promise<void> {
 export async function deleteRemoteScroll(id: string): Promise<void> {
   if (!supabase) return
   if (!isUuid(id)) return
-  const { error } = await supabase.from('scrolls').delete().eq('id', id)
+  const { error } = await supabase
+    .from('scrolls')
+    .update({
+      is_deleted: true,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id)
   if (error) throw error
 }
 
@@ -67,7 +76,15 @@ export function mergeScrolls(local: Scroll[], remote: Scroll[]): Scroll[] {
   for (const scroll of local) byId.set(scroll.id, scroll)
   for (const scroll of remote) {
     const existing = byId.get(scroll.id)
-    if (!existing || scroll.updatedAt >= existing.updatedAt) byId.set(scroll.id, scroll)
+    if (!existing) {
+      byId.set(scroll.id, scroll)
+      continue
+    }
+    const winner = scroll.updatedAt >= existing.updatedAt ? scroll : existing
+    byId.set(scroll.id, {
+      ...winner,
+      isDeleted: Boolean(existing.isDeleted || scroll.isDeleted),
+    })
   }
   return [...byId.values()].sort((left, right) => right.updatedAt - left.updatedAt)
 }
@@ -99,6 +116,7 @@ export async function fetchSendLog(): Promise<SendLogEntry[]> {
   const { data, error } = await supabase
     .from('sends')
     .select('id, to_email, sender_email, category, note, status, created_at, scrolls(title)')
+    .eq('is_deleted', false)
     .order('created_at', { ascending: false })
     .limit(40)
   if (error) throw error

@@ -1,5 +1,5 @@
 import type { Session } from '@supabase/supabase-js'
-import { displayTitle } from '../model.ts'
+import { displayTitle, scrollHasContent } from '../model.ts'
 import { FONTS, FORMS, INKS, STICKERS, TEXTURES, fontOf, type Scroll, type TextureId } from '../types.ts'
 import { SendLog } from './SendLog.tsx'
 
@@ -49,6 +49,7 @@ export function Tray({
   const form = FORMS.find((item) => item.id === scroll.form) ?? FORMS[0]
   const hand = fontOf(scroll.font)
   const hasPoem = scroll.scraps.some((scrap) => scrap.role === 'generated')
+  const canSend = scrollHasContent(scroll)
   const canScatter = scroll.scraps.some(
     (scrap) => scrap.role === 'generated' && scrap.text.split('\n').filter((line) => line.trim()).length > 1,
   )
@@ -118,7 +119,13 @@ export function Tray({
             Scatter lines
           </button>
         )}
-        <button type="button" className="write" onClick={onSendMail}>
+        <button
+          type="button"
+          className="write"
+          disabled={!canSend}
+          title={canSend ? undefined : 'Write something on the paper first.'}
+          onClick={onSendMail}
+        >
           Send by mail
         </button>
         <button type="button" onClick={onCloseScroll}>

@@ -32,6 +32,14 @@ export function visibleScrolls(scrolls: Scroll[]): Scroll[] {
   return scrolls.filter(isVisibleScroll)
 }
 
+/** True when the paper has something to send: writing, a sticker, or pen strokes. */
+export function scrollHasContent(scroll: Scroll): boolean {
+  if (scroll.strokes.length > 0) return true
+  if (scroll.scraps.some((scrap) => scrap.kind === 'sticker' || Boolean(scrap.text.trim()))) return true
+  if (scroll.form === 'blank' && scroll.words.trim()) return true
+  return false
+}
+
 export function displayTitle(scroll: Scroll): string {
   if (scroll.titleCustom && scroll.title.trim()) return scroll.title.trim()
   for (const scrap of scroll.scraps) {

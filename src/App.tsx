@@ -12,6 +12,7 @@ import {
   duplicateScroll,
   normalizeLook,
   scatterLines,
+  scrollHasContent,
   syncBlankScrapToWords,
   syncWordsToBlank,
   touchScroll,
@@ -357,7 +358,7 @@ export default function App() {
   }
 
   async function openSend() {
-    if (!open || busy) return
+    if (!open || busy || !scrollHasContent(open)) return
     if (session && !(session.user.is_anonymous && !senderDisplayNameRef.current && !guestDisplayName)) {
       setSendOpen(true)
       return
@@ -393,7 +394,7 @@ export default function App() {
   }
 
   async function confirmSend(recipients: MailRecipient[], note: string) {
-    if (!open || phase !== 'open' || busy) return
+    if (!open || phase !== 'open' || busy || !scrollHasContent(open)) return
     setSendOpen(false)
     setBusy('send')
     setSendDone(false)

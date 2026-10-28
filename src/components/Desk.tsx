@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { AuthPanel } from '../auth/AuthPanel.tsx'
 import type { MailRecipient } from '../lib/recipients.ts'
+import { scrollHasContent } from '../model.ts'
 import type { Scrap, Scroll, Stroke, TextureId } from '../types.ts'
 import { EnvelopeScene } from './EnvelopeScene.tsx'
 import { Library } from './Library.tsx'
@@ -205,6 +206,7 @@ export function Desk({
         key={sendOpen ? 'send-open' : 'send-closed'}
         open={sendOpen}
         busy={busy === 'send'}
+        hasContent={open ? scrollHasContent(open) : false}
         senderDisplayName={guestDisplayName}
         isGuest={Boolean(session?.user.is_anonymous)}
         onClose={onCloseSend}

@@ -21,6 +21,7 @@ type Row = {
 type SendSheetProps = {
   open: boolean
   busy: boolean
+  hasContent: boolean
   senderDisplayName: string
   isGuest: boolean
   onClose: () => void
@@ -40,6 +41,7 @@ function newRow(email = ''): Row {
 export function SendSheet({
   open,
   busy,
+  hasContent,
   senderDisplayName,
   isGuest,
   onClose,
@@ -60,7 +62,7 @@ export function SendSheet({
 
   function submit(event: FormEvent) {
     event.preventDefault()
-    if (busy || validRecipients.length === 0) return
+    if (busy || !hasContent || validRecipients.length === 0) return
     onSend(validRecipients, note.trim())
   }
 
@@ -214,7 +216,12 @@ export function SendSheet({
           <button type="button" disabled={busy} onClick={onClose}>
             Cancel
           </button>
-          <button type="submit" className="write" disabled={busy || validRecipients.length === 0}>
+          <button
+            type="submit"
+            className="write"
+            disabled={busy || !hasContent || validRecipients.length === 0}
+            title={hasContent ? undefined : 'Write something on the paper first.'}
+          >
             {busy ? 'Sending…' : 'Fold and send'}
           </button>
         </div>

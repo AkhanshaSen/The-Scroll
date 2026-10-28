@@ -12,7 +12,9 @@
     "supabase:configure": "node scripts/supabase-configure.mjs",
     "supabase:link": "npx supabase link --project-ref \"$(tr -d '[:space:]' < supabase/.project-ref)\"",
     "supabase:deploy-send": "npx supabase functions deploy send-scroll --project-ref \"$(node -e \"const fs=require('fs');const m=fs.readFileSync('.env.local','utf8').match(/^SUPABASE_PROJECT_REF=(.+)$/m);if(!m)process.exit(1);process.stdout.write(m[1].trim())\")\"",
-    "supabase:deploy-auth-email": "npx supabase functions deploy auth-email --no-verify-jwt --project-ref \"$(node -e \"const fs=require('fs');const m=fs.readFileSync('.env.local','utf8').match(/^SUPABASE_PROJECT_REF=(.+)$/m);if(!m)process.exit(1);process.stdout.write(m[1].trim())\")\""
+    "supabase:deploy-auth-email": "npx supabase functions deploy auth-email --no-verify-jwt --project-ref \"$(node -e \"const fs=require('fs');const m=fs.readFileSync('.env.local','utf8').match(/^SUPABASE_PROJECT_REF=(.+)$/m);if(!m)process.exit(1);process.stdout.write(m[1].trim())\")\"",
+    "security:hook-secret": "bash scripts/print-email-hook-secret.sh",
+    "security:audit": "npm audit"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",

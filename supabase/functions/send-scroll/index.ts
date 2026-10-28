@@ -293,11 +293,7 @@ Deno.serve(async (request) => {
   } catch (error) {
     const message = error instanceof Error ? error.message : 'unknown'
     log('SEND_ERROR', { reason: message })
-    const hint =
-      /view_token|image_data|column/i.test(message)
-        ? 'Database may be missing migration 004_view_tokens.sql (view_token / image_data columns).'
-        : 'Something went wrong while sending.'
-    return json({ error: hint, detail: message.slice(0, 200) }, 500, corsHeaders)
+    return json({ error: 'Something went wrong while sending.' }, 500, corsHeaders)
   }
 })
 
@@ -338,8 +334,8 @@ function summarizeResendFailure(status: number, body: string): string {
 }
 
 function guestSendAllowed(): boolean {
-  const raw = (Deno.env.get('ALLOW_GUEST_SEND') ?? 'true').trim().toLowerCase()
-  return raw !== 'false' && raw !== '0' && raw !== 'no'
+  const raw = (Deno.env.get('ALLOW_GUEST_SEND') ?? 'false').trim().toLowerCase()
+  return raw === 'true' || raw === '1' || raw === 'yes'
 }
 
 function sanitizeDisplayName(raw: string): string {

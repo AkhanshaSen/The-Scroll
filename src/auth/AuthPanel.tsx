@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import type { Session } from '@supabase/supabase-js'
+import { useOtpCooldownStatus } from './authEmailStatus.ts'
 import { requestMagicLink } from './magicLink.ts'
 import { clearGuestDisplayName } from '../lib/guestSend.ts'
 import { supabase, supabaseConfigured } from '../lib/supabase.ts'
@@ -14,6 +15,7 @@ export function AuthPanel({ session, guestDisplayName = '' }: AuthPanelProps) {
   const [email, setEmail] = useState('')
   const [status, setStatus] = useState('')
   const [busy, setBusy] = useState(false)
+  const { displayStatus, coolingDown } = useOtpCooldownStatus(status)
 
   if (!supabaseConfigured || !supabase) {
     return (
@@ -25,13 +27,16 @@ export function AuthPanel({ session, guestDisplayName = '' }: AuthPanelProps) {
 
   async function requestLink(event: FormEvent) {
     event.preventDefault()
-    if (!email.trim()) return
+    if (!email.trim() || coolingDown) return
     setBusy(true)
     setStatus('')
     const { error } = await requestMagicLink(email)
     setBusy(false)
     if (error) setStatus(error)
-    else setStatus('Look for a letter from Paper scroll studio. After you tap the seal, you stay signed in on this computer until you sign out.')
+    else
+      setStatus(
+        'Look for a letter from Paper scroll studio. After you tap the seal, you stay signed in on this computer until you sign out.',
+      )
   }
 
   async function signOut() {
@@ -50,7 +55,14 @@ export function AuthPanel({ session, guestDisplayName = '' }: AuthPanelProps) {
       : (session.user.email ?? 'Signed in')
     return (
       <div className="auth-signed">
-        <span className="auth-email" title={isGuest ? 'Guest session — stays on this computer until you sign out' : (session.user.email ?? 'Signed in on this computer')}>
+        <span
+          className="auth-email"
+          title={
+            isGuest
+              ? 'Guest session — stays on this computer until you sign out'
+              : (session.user.email ?? 'Signed in on this computer')
+          }
+        >
           {label}
         </span>
         {isGuest && (
@@ -71,13 +83,14 @@ export function AuthPanel({ session, guestDisplayName = '' }: AuthPanelProps) {
                 required
                 autoComplete="email"
                 placeholder="you@example.com"
+                disabled={busy || coolingDown}
                 onChange={(event) => setEmail(event.target.value)}
               />
             </label>
-            <button type="submit" disabled={busy}>
-              {busy ? 'Sending…' : 'Email me a link'}
+            <button type="submit" disabled={busy || coolingDown || !email.trim()}>
+              {busy ? 'Sending…' : coolingDown ? displayStatus : 'Email me a link'}
             </button>
-            {status && <p className="auth-status">{status}</p>}
+            {displayStatus && <p className="auth-status">{displayStatus}</p>}
           </form>
         )}
       </div>
@@ -92,7 +105,8 @@ export function AuthPanel({ session, guestDisplayName = '' }: AuthPanelProps) {
       {open && (
         <form className="auth-form" onSubmit={(event) => void requestLink(event)}>
           <p className="auth-help">
-            We’ll send a one-time letter from Paper scroll studio. After you tap it, you stay signed in here until you sign out.
+            We’ll send a one-time letter from Paper scroll studio. After you tap it, you stay signed in
+            here until you sign out.
           </p>
           <label>
             <span>Email</span>
@@ -102,13 +116,14 @@ export function AuthPanel({ session, guestDisplayName = '' }: AuthPanelProps) {
               required
               autoComplete="email"
               placeholder="you@example.com"
+              disabled={busy || coolingDown}
               onChange={(event) => setEmail(event.target.value)}
             />
           </label>
-          <button type="submit" disabled={busy}>
-            {busy ? 'Sending…' : 'Email me a link'}
+          <button type="submit" disabled={busy || coolingDown || !email.trim()}>
+            {busy ? 'Sending…' : coolingDown ? displayStatus : 'Email me a link'}
           </button>
-          {status && <p className="auth-status">{status}</p>}
+          {displayStatus && <p className="auth-status">{displayStatus}</p>}
         </form>
       )}
     </div>

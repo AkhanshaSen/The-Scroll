@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { authRedirectUrl } from '../lib/authRedirect.ts'
-import { supabase, supabaseConfigured } from '../lib/supabase.ts'
+import { useOtpCooldownStatus } from '../auth/authEmailStatus.ts'
+import { requestMagicLink } from '../auth/magicLink.ts'
+import { supabaseConfigured } from '../lib/supabase.ts'
 import { ScrollRoller } from './ScrollRoller.tsx'
 import { WaxEnvelope } from './WaxEnvelope.tsx'
 
@@ -33,6 +34,8 @@ export function ScrollView({ token }: { token: string }) {
   const [signupEmail, setSignupEmail] = useState('')
   const [signupStatus, setSignupStatus] = useState('')
   const [signupBusy, setSignupBusy] = useState(false)
+  const { displayStatus: signupDisplayStatus, coolingDown: signupCoolingDown } =
+    useOtpCooldownStatus(signupStatus)
 
   useEffect(() => {
     const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.replace(/\/$/, '')
@@ -130,15 +133,12 @@ export function ScrollView({ token }: { token: string }) {
 
   async function requestSignupLink(event: FormEvent) {
     event.preventDefault()
-    if (!supabase || !signupEmail.trim()) return
+    if (!signupEmail.trim() || signupCoolingDown) return
     setSignupBusy(true)
     setSignupStatus('')
-    const { error } = await supabase.auth.signInWithOtp({
-      email: signupEmail.trim(),
-      options: { emailRedirectTo: authRedirectUrl() },
-    })
+    const { error } = await requestMagicLink(signupEmail)
     setSignupBusy(false)
-    if (error) setSignupStatus(error.message)
+    if (error) setSignupStatus(error)
     else setSignupStatus('Check your email for a sign-in link. Start folding scrolls!')
   }
 
@@ -253,13 +253,21 @@ export function ScrollView({ token }: { token: string }) {
                 autoComplete="email"
                 placeholder="your@email.com"
                 value={signupEmail}
-                disabled={signupBusy}
+                disabled={signupBusy || signupCoolingDown}
                 onChange={(event) => setSignupEmail(event.target.value)}
               />
-              <button type="submit" className="sv-cta-btn" disabled={signupBusy || !signupEmail.trim()}>
-                {signupBusy ? 'Sending…' : 'Get started — it\'s free'}
+              <button
+                type="submit"
+                className="sv-cta-btn"
+                disabled={signupBusy || signupCoolingDown || !signupEmail.trim()}
+              >
+                {signupBusy
+                  ? 'Sending…'
+                  : signupCoolingDown
+                    ? signupDisplayStatus
+                    : "Get started — it's free"}
               </button>
-              {signupStatus && <p className="sv-signup-status">{signupStatus}</p>}
+              {signupDisplayStatus && <p className="sv-signup-status">{signupDisplayStatus}</p>}
             </form>
           ) : (
             <a href="/" className="sv-cta-btn">Open Paper scroll studio</a>

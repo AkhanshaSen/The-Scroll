@@ -7,13 +7,21 @@ project_id = "kaiffjdbfjkjqisumklh"
 
 [auth]
 enabled = true
-enable_anonymous_sign_ins = true
+enable_anonymous_sign_ins = false
 site_url = "https://akhanshasen.github.io/The-Scroll/"
 additional_redirect_urls = [
   "http://localhost:5173",
   "http://localhost:5173/**",
+  "http://localhost:5174",
+  "http://localhost:5174/**",
+  "http://localhost:5175",
+  "http://localhost:5175/**",
   "http://127.0.0.1:5173",
   "http://127.0.0.1:5173/**",
+  "http://127.0.0.1:5174",
+  "http://127.0.0.1:5174/**",
+  "http://127.0.0.1:5175",
+  "http://127.0.0.1:5175/**",
   "https://akhanshasen.github.io/The-Scroll",
   "https://akhanshasen.github.io/The-Scroll/",
   "https://akhanshasen.github.io/The-Scroll/**",
@@ -39,8 +47,10 @@ content_path = "./supabase/templates/recovery.html"
 subject = "Confirm your new Paper scroll studio address"
 content_path = "./supabase/templates/email_change.html"
 
+# Sign-in uses Supabase Auth mail + templates/*.html when disabled.
+# Set enabled = true to route magic links through auth-email → Resend again.
 [auth.hook.send_email]
-enabled = true
+enabled = false
 uri = "https://kaiffjdbfjkjqisumklh.supabase.co/functions/v1/auth-email"
 secrets = "env(SEND_EMAIL_HOOK_SECRET)"
 

@@ -31,5 +31,5 @@ fi
 
 gh secret set VITE_SUPABASE_URL --body "$URL"
 gh secret set VITE_SUPABASE_PUBLISHABLE_KEY --body "$KEY"
-gh secret set VITE_ALLOW_GUEST_SEND --body "${GUEST:-true}"
+gh secret set VITE_ALLOW_GUEST_SEND --body "${GUEST:-false}"
 echo "GitHub Actions secrets updated. Re-run Deploy workflow or push to main."

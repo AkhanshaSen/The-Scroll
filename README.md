@@ -11,6 +11,8 @@ npm run dev
 
 Backend (auth, sync, email): [docs/SUPABASE_SETUP.md](docs/SUPABASE_SETUP.md)
 
+Security (secrets, guest send off, free checklist + one-time apply): [docs/SECURITY.md](docs/SECURITY.md)
+
 The Scroll
 Paper scroll studio — an offline-first web app for clumsy words, poems, and free writing on textured paper that unrolls like a scroll. Sign in with Supabase to sync your library and fold a scroll into an envelope to email it.
 

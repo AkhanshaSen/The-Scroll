@@ -28,6 +28,10 @@ import {
 } from './model.ts'
 import type { SendGateReady } from './components/SendGateDialog.tsx'
 import {
+  markWelcomeEmailDismissed,
+  wasWelcomeEmailDismissed,
+} from './components/WelcomeEmailDialog.tsx'
+import {
   allowGuestSend,
   clearGuestDisplayName,
   defaultSenderName,
@@ -39,6 +43,10 @@ import { sendScrollMail } from './sendMail.ts'
 import { loadDesk, saveDesk } from './storage.ts'
 import { deleteRemoteScroll, fetchScrollsForUser, mergeScrolls, upsertScroll } from './storage/remoteScrolls.ts'
 import type { Scroll, Stroke, TextureId } from './types.ts'
+
+function isSignedInUser(session: Session | null): boolean {
+  return Boolean(session?.user && !session.user.is_anonymous)
+}
 
 function reducedMotion() {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -55,6 +63,8 @@ export default function App() {
   const [guestDisplayName, setGuestDisplayName] = useState(() => loadGuestDisplayName())
   const [sendOpen, setSendOpen] = useState(false)
   const [sendGateOpen, setSendGateOpen] = useState(false)
+  const [welcomeEmailOpen, setWelcomeEmailOpen] = useState(false)
+  const [authReady, setAuthReady] = useState(false)
   const [sendDone, setSendDone] = useState(false)
   const [sentSummary, setSentSummary] = useState<{ title: string; recipients: string[] } | null>(null)
   const [sendLogRefreshKey, setSendLogRefreshKey] = useState(0)
@@ -71,7 +81,10 @@ export default function App() {
   const clearFocus = useCallback(() => setFocusId(null), [])
 
   useEffect(() => {
-    if (!supabase) return
+    if (!supabase) {
+      setAuthReady(true)
+      return
+    }
     void supabase.auth.getSession().then(({ data }) => {
       setSession(data.session)
       if (data.session?.user && !data.session.user.is_anonymous) {
@@ -84,6 +97,7 @@ export default function App() {
         setGuestDisplayName(name)
         senderDisplayNameRef.current = name
       }
+      setAuthReady(true)
     })
     const { data } = supabase.auth.onAuthStateChange((_event, next) => {
       setSession(next)
@@ -91,6 +105,7 @@ export default function App() {
         clearGuestDisplayName()
         setGuestDisplayName('')
         senderDisplayNameRef.current = ''
+        setWelcomeEmailOpen(false)
       } else if (!next || next.user.is_anonymous) {
         const name = loadGuestDisplayName()
         setGuestDisplayName(name)
@@ -99,6 +114,16 @@ export default function App() {
     })
     return () => data.subscription.unsubscribe()
   }, [])
+
+  useEffect(() => {
+    if (!authReady || !supabase) return
+    if (isSignedInUser(session)) {
+      setWelcomeEmailOpen(false)
+      return
+    }
+    if (wasWelcomeEmailDismissed()) return
+    setWelcomeEmailOpen(true)
+  }, [authReady, session])
 
   useEffect(() => {
     if (!session) return
@@ -163,15 +188,6 @@ export default function App() {
     try {
       await upsertScroll(open)
       const image = payload.imageBase64 ?? (await captureSheetForSend())
-      console.log('[scroll:send] attempt', {
-        scrollId: open.id,
-        recipients: payload.recipients,
-        title,
-        from: session?.user.email ?? null,
-        senderDisplayName: senderDisplayName || null,
-        guest: Boolean(session?.user.is_anonymous),
-        imageBytes: image.length,
-      })
       const minSealMs = reducedMotion() ? 0 : 900
       const flyAwayMs = reducedMotion() ? 120 : 450
       await Promise.all([
@@ -185,11 +201,6 @@ export default function App() {
         }),
         new Promise<void>((resolve) => window.setTimeout(resolve, minSealMs)),
       ])
-      console.log('[scroll:send] ✓ sent', {
-        scrollId: open.id,
-        emails,
-        title,
-      })
       setSendLogRefreshKey((key) => key + 1)
       setSendDone(true)
       window.setTimeout(() => {
@@ -205,12 +216,6 @@ export default function App() {
       }, flyAwayMs)
     } catch (error) {
       const message = error instanceof Error ? error.message : 'The letter could not be sent.'
-      console.error('[scroll:send] ✗ failed', {
-        scrollId: open.id,
-        emails,
-        title,
-        message,
-      })
       window.alert(message)
       sendPayloadRef.current = null
       setSendDone(false)
@@ -368,11 +373,15 @@ export default function App() {
   async function openSend() {
     if (!open || busy || !scrollHasContent(open)) return
     setPen(false)
-    if (session && !(session.user.is_anonymous && !senderDisplayNameRef.current && !guestDisplayName)) {
+    if (isSignedInUser(session)) {
       setSendOpen(true)
       return
     }
     if (allowGuestSend()) {
+      if (session?.user.is_anonymous && (senderDisplayNameRef.current || guestDisplayName)) {
+        setSendOpen(true)
+        return
+      }
       setBusy('send')
       const ok = session?.user.is_anonymous
         ? true
@@ -455,9 +464,14 @@ export default function App() {
       sendLogRefreshKey={sendLogRefreshKey}
       sendOpen={sendOpen}
       sendGateOpen={sendGateOpen}
+      welcomeEmailOpen={welcomeEmailOpen}
       sendDone={sendDone}
       sentSummary={sentSummary}
       onDismissSentSummary={() => setSentSummary(null)}
+      onDismissWelcomeEmail={() => {
+        markWelcomeEmailDismissed()
+        setWelcomeEmailOpen(false)
+      }}
       onChangeSenderName={onChangeSenderName}
       onRequestSignInFromSheet={() => {
         setSendOpen(false)
@@ -498,7 +512,11 @@ export default function App() {
       onOpenSend={openSend}
       onCloseSend={() => setSendOpen(false)}
       onCloseSendGate={() => setSendGateOpen(false)}
-      onSendGateReady={onSendGateReady}
+      onSendGateReady={(result) => {
+        markWelcomeEmailDismissed()
+        setWelcomeEmailOpen(false)
+        onSendGateReady(result)
+      }}
       onConfirmSend={confirmSend}
       onDuplicate={() => {
         if (open) duplicate(open.id)

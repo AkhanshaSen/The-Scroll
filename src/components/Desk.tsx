@@ -11,6 +11,7 @@ import { RolledScrollSvg } from './ScrollRoller.tsx'
 import { SendGateDialog, type SendGateReady } from './SendGateDialog.tsx'
 import { SendSheet } from './SendSheet.tsx'
 import { Tray } from './Tray.tsx'
+import { WelcomeEmailDialog } from './WelcomeEmailDialog.tsx'
 
 type DeskProps = {
   scrolls: Scroll[]
@@ -24,9 +25,11 @@ type DeskProps = {
   sendLogRefreshKey: number
   sendOpen: boolean
   sendGateOpen: boolean
+  welcomeEmailOpen: boolean
   sendDone: boolean
   sentSummary: { title: string; recipients: string[] } | null
   onDismissSentSummary: () => void
+  onDismissWelcomeEmail: () => void
   onChangeSenderName: (name: string) => void
   onRequestSignInFromSheet: () => void
   onToggle: (id: string) => void
@@ -69,9 +72,11 @@ export function Desk({
   sendLogRefreshKey,
   sendOpen,
   sendGateOpen,
+  welcomeEmailOpen,
   sendDone,
   sentSummary,
   onDismissSentSummary,
+  onDismissWelcomeEmail,
   onChangeSenderName,
   onRequestSignInFromSheet,
   onToggle,
@@ -203,6 +208,8 @@ export function Desk({
           </>
         )}
       </main>
+
+      <WelcomeEmailDialog open={welcomeEmailOpen} onDismiss={onDismissWelcomeEmail} />
 
       <SendGateDialog
         open={sendGateOpen}

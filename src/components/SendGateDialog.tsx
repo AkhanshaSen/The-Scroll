@@ -1,4 +1,5 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
+import { useOtpCooldownStatus } from '../auth/authEmailStatus.ts'
 import { requestMagicLink } from '../auth/magicLink.ts'
 import {
   allowGuestSend,
@@ -21,18 +22,32 @@ type SendGateDialogProps = {
 
 type Step = 'choose' | 'sign_in' | 'guest_name'
 
+function initialStep(): Step {
+  return allowGuestSend() ? 'choose' : 'sign_in'
+}
+
 export function SendGateDialog({ open, onClose, onReady }: SendGateDialogProps) {
   const guestAllowed = allowGuestSend()
-  const [step, setStep] = useState<Step>('choose')
+  const [step, setStep] = useState<Step>(initialStep)
   const [email, setEmail] = useState('')
   const [displayName, setDisplayName] = useState('')
   const [status, setStatus] = useState('')
   const [busy, setBusy] = useState(false)
+  const { displayStatus, coolingDown } = useOtpCooldownStatus(status)
+
+  useEffect(() => {
+    if (!open) return
+    setStep(initialStep())
+    setEmail('')
+    setDisplayName('')
+    setStatus('')
+    setBusy(false)
+  }, [open])
 
   if (!open) return null
 
   function resetAndClose() {
-    setStep('choose')
+    setStep(initialStep())
     setEmail('')
     setDisplayName('')
     setStatus('')
@@ -42,7 +57,7 @@ export function SendGateDialog({ open, onClose, onReady }: SendGateDialogProps) 
 
   async function submitMagicLink(event: FormEvent) {
     event.preventDefault()
-    if (busy) return
+    if (busy || coolingDown) return
     setBusy(true)
     setStatus('')
     const { error } = await requestMagicLink(email)
@@ -51,7 +66,9 @@ export function SendGateDialog({ open, onClose, onReady }: SendGateDialogProps) 
       setStatus(error)
       return
     }
-    setStatus('Look for a letter from Paper scroll studio. After you tap the seal you stay signed in on this computer — then tap Send by mail again.')
+    setStatus(
+      'Look for a letter from Paper scroll studio. After you tap the seal you stay signed in on this computer — then tap Send by mail again.',
+    )
   }
 
   async function submitGuest(event: FormEvent) {
@@ -87,7 +104,7 @@ export function SendGateDialog({ open, onClose, onReady }: SendGateDialogProps) 
         aria-labelledby="send-gate-title"
         onClick={(event) => event.stopPropagation()}
       >
-        {step === 'choose' && (
+        {step === 'choose' && guestAllowed && (
           <>
             <h2 id="send-gate-title">Before you send</h2>
             <p className="whisper">
@@ -98,11 +115,9 @@ export function SendGateDialog({ open, onClose, onReady }: SendGateDialogProps) 
               <button type="button" className="write" onClick={() => setStep('sign_in')}>
                 Sign in with email link
               </button>
-              {guestAllowed && (
-                <button type="button" className="send-gate-secondary" onClick={() => setStep('guest_name')}>
-                  Continue as guest
-                </button>
-              )}
+              <button type="button" className="send-gate-secondary" onClick={() => setStep('guest_name')}>
+                Continue as guest
+              </button>
               <button type="button" onClick={resetAndClose}>
                 Cancel
               </button>
@@ -114,7 +129,7 @@ export function SendGateDialog({ open, onClose, onReady }: SendGateDialogProps) 
           <form onSubmit={(event) => void submitMagicLink(event)}>
             <h2 id="send-gate-title">Sign in with email</h2>
             <p className="whisper">
-              We’ll email a one-time letter from Paper scroll studio. No password. After you tap it, you stay signed in on this computer until you sign out.
+              We’ll email a one-time letter from Paper scroll studio. No password. After you tap it, you stay signed in on this computer until you sign out — then you can send to someone you love.
             </p>
             <label className="field">
               <span>Your email</span>
@@ -124,19 +139,36 @@ export function SendGateDialog({ open, onClose, onReady }: SendGateDialogProps) 
                 autoComplete="email"
                 placeholder="you@example.com"
                 value={email}
-                disabled={busy}
+                disabled={busy || coolingDown}
                 onChange={(event) => setEmail(event.target.value)}
               />
             </label>
             <div className="row-actions">
-              <button type="button" disabled={busy} onClick={() => { setStep('choose'); setStatus('') }}>
-                Back
-              </button>
-              <button type="submit" className="write" disabled={busy || !email.trim()}>
-                {busy ? 'Sending…' : 'Email me a link'}
+              {guestAllowed ? (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => {
+                    setStep('choose')
+                    setStatus('')
+                  }}
+                >
+                  Back
+                </button>
+              ) : (
+                <button type="button" disabled={busy} onClick={resetAndClose}>
+                  Cancel
+                </button>
+              )}
+              <button
+                type="submit"
+                className="write"
+                disabled={busy || coolingDown || !email.trim()}
+              >
+                {busy ? 'Sending…' : coolingDown ? displayStatus : 'Email me a link'}
               </button>
             </div>
-            {status && <p className="auth-status send-gate-status">{status}</p>}
+            {displayStatus && <p className="auth-status send-gate-status">{displayStatus}</p>}
           </form>
         )}
 
@@ -161,7 +193,14 @@ export function SendGateDialog({ open, onClose, onReady }: SendGateDialogProps) 
               />
             </label>
             <div className="row-actions">
-              <button type="button" disabled={busy} onClick={() => { setStep('choose'); setStatus('') }}>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => {
+                  setStep('choose')
+                  setStatus('')
+                }}
+              >
                 Back
               </button>
               <button

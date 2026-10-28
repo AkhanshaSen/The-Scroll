@@ -1708,6 +1708,16 @@ button.wax-envelope {
   margin-top: 14px;
 }
 
+.welcome-email .send-gate-actions {
+  margin-top: 16px;
+}
+
+.resend-test-hint {
+  margin: 8px 0 0;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 .auth-panel, .auth-signed {
   display: flex;
   align-items: center;

@@ -1,4 +1,10 @@
 /// <reference path="../deno.d.ts" />
+/**
+ * Optional Send Email hook → Resend (parchment letters via brandedEmail).
+ * Disabled when supabase/config.toml has [auth.hook.send_email] enabled = false;
+ * then Supabase Auth sends magic links itself using supabase/templates/*.html.
+ * Re-enable the hook + SEND_EMAIL_HOOK_SECRET to use this function again.
+ */
 import { Webhook } from 'https://esm.sh/standardwebhooks@1.0.0'
 import {
   authEmailCopy,
@@ -33,26 +39,23 @@ Deno.serve(async (request) => {
   if (!resendKey || !supabaseUrl) {
     return json({ error: { message: 'Auth email is missing Resend or Supabase configuration.' } }, 500)
   }
+  if (!hookSecretRaw.trim()) {
+    return json({ error: { message: 'Auth email is not configured.' } }, 500)
+  }
 
   const payload = await request.text()
   let user: HookUser = {}
   let emailData: EmailData = {}
 
   try {
-    if (hookSecretRaw) {
-      const hookSecret = hookSecretRaw.replace('v1,whsec_', '')
-      const headers = Object.fromEntries(request.headers)
-      const verified = new Webhook(hookSecret).verify(payload, headers) as {
-        user?: HookUser
-        email_data?: EmailData
-      }
-      user = verified.user ?? {}
-      emailData = verified.email_data ?? {}
-    } else {
-      const parsed = JSON.parse(payload) as { user?: HookUser; email_data?: EmailData }
-      user = parsed.user ?? {}
-      emailData = parsed.email_data ?? {}
+    const hookSecret = hookSecretRaw.replace('v1,whsec_', '')
+    const headers = Object.fromEntries(request.headers)
+    const verified = new Webhook(hookSecret).verify(payload, headers) as {
+      user?: HookUser
+      email_data?: EmailData
     }
+    user = verified.user ?? {}
+    emailData = verified.email_data ?? {}
   } catch (error) {
     const message = error instanceof Error ? error.message : 'invalid webhook'
     console.error('[auth-email] verify failed', message)
@@ -94,7 +97,19 @@ Deno.serve(async (request) => {
 
   if (!resendResponse.ok) {
     const body = (await resendResponse.text()).slice(0, 500)
-    console.error('[auth-email] resend failed', resendResponse.status, body)
+    const lower = body.toLowerCase()
+    if (
+      resendResponse.status === 403 ||
+      lower.includes('only send testing') ||
+      lower.includes('verify a domain')
+    ) {
+      console.error(
+        '[auth-email] resend test-mode recipient rejected',
+        JSON.stringify({ email, status: resendResponse.status, body }),
+      )
+    } else {
+      console.error('[auth-email] resend failed', resendResponse.status, body)
+    }
     return json(
       {
         error: {

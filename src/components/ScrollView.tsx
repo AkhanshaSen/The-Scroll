@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { authRedirectUrl } from '../lib/authRedirect.ts'
 import { supabase, supabaseConfigured } from '../lib/supabase.ts'
+import { ScrollRoller } from './ScrollRoller.tsx'
 import { WaxEnvelope } from './WaxEnvelope.tsx'
 
 type ScrollPayload = {
@@ -118,7 +119,7 @@ export function ScrollView({ token }: { token: string }) {
           senderDisplayName,
           imageBase64,
         }),
-      reduced ? 200 : 1600,
+      reduced ? 200 : 1800,
     )
     return () => window.clearTimeout(timer)
   }, [state])
@@ -210,12 +211,14 @@ export function ScrollView({ token }: { token: string }) {
             <h1 className="sv-scroll-title">{title}</h1>
             {note ? <p className="sv-note">"{note}"</p> : null}
           </header>
-          <div className="sv-scroll-stage sv-unroll">
-            <div className="sv-rod sv-rod-top" aria-hidden="true" />
+          <div className="sv-scroll-stage sv-unroll tube-cream">
+            <ScrollRoller position="top" />
             <div className="sv-paper-wrap">
+              <div className="roll-curl roll-curl-top" aria-hidden="true" />
               <img className="sv-paper-img" src={imageBase64} alt={title} />
+              <div className="roll-curl roll-curl-bottom" aria-hidden="true" />
             </div>
-            <div className="sv-rod sv-rod-bottom" aria-hidden="true" />
+            <ScrollRoller position="bottom" />
           </div>
           <div className="sv-cta-area">
             <button

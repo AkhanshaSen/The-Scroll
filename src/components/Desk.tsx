@@ -2,11 +2,12 @@ import { useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { AuthPanel } from '../auth/AuthPanel.tsx'
 import type { MailRecipient } from '../lib/recipients.ts'
-import { scrollHasContent } from '../model.ts'
+import { displayTitle, scrollHasContent } from '../model.ts'
 import type { Scrap, Scroll, Stroke, TextureId } from '../types.ts'
 import { EnvelopeScene } from './EnvelopeScene.tsx'
 import { Library } from './Library.tsx'
 import { OpenScroll, type ScrollPhase } from './Scroll.tsx'
+import { RolledScrollSvg } from './ScrollRoller.tsx'
 import { SendGateDialog, type SendGateReady } from './SendGateDialog.tsx'
 import { SendSheet } from './SendSheet.tsx'
 import { Tray } from './Tray.tsx'
@@ -192,7 +193,14 @@ export function Desk({
             )}
           </>
         ) : (
-          <TrayPlaceholder onNewRoll={onCreate} onOpenLibrary={() => setLibraryOpen(true)} />
+          <>
+            <DeskRollShelf
+              scrolls={scrolls}
+              openId={openId}
+              onOpen={onToggle}
+            />
+            <TrayPlaceholder onNewRoll={onCreate} onOpenLibrary={() => setLibraryOpen(true)} />
+          </>
         )}
       </main>
 
@@ -240,6 +248,40 @@ export function Desk({
   )
 }
 
+function DeskRollShelf({
+  scrolls,
+  openId,
+  onOpen,
+}: {
+  scrolls: Scroll[]
+  openId: string | null
+  onOpen: (id: string) => void
+}) {
+  const rolls = [...scrolls].sort((left, right) => right.updatedAt - left.updatedAt).slice(0, 6)
+  return (
+    <section className="desk-rolls" aria-label="Rolled scrolls on the desk">
+      <p className="desk-rolls-heading">On the desk</p>
+      {rolls.length === 0 ? (
+        <p className="desk-rolls-empty">No scrolls yet — start a new roll.</p>
+      ) : (
+        <div className="desk-rolls-row">
+          {rolls.map((scroll) => (
+            <button
+              key={scroll.id}
+              type="button"
+              className={`desk-roll ${scroll.id === openId ? 'is-active' : ''}`}
+              aria-label={`Unroll ${displayTitle(scroll)}`}
+              onClick={() => onOpen(scroll.id)}
+            >
+              <RolledScrollSvg texture={scroll.texture} title={displayTitle(scroll)} tied />
+            </button>
+          ))}
+        </div>
+      )}
+    </section>
+  )
+}
+
 function TrayPlaceholder({
   onNewRoll,
   onOpenLibrary,
@@ -250,7 +292,7 @@ function TrayPlaceholder({
   return (
     <aside className="tray tray-placeholder">
       <h2>Write</h2>
-      <p className="whisper">Start a new scroll, or pick one from the library.</p>
+      <p className="whisper">Start a new scroll, or pick one from the library. Tap a rolled scroll on the desk to unroll it.</p>
       <div className="placeholder-actions">
         <button type="button" className="write" onClick={onNewRoll}>
           + New scroll

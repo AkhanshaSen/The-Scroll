@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Scrap, Scroll, Stroke } from '../types.ts'
 import { Sheet } from './Sheet.tsx'
+import { ScrollRoller, SilkRibbon } from './ScrollRoller.tsx'
 
 export type ScrollPhase = 'opening' | 'open' | 'folding' | 'envelope' | 'closing'
 
@@ -21,8 +22,12 @@ export function OpenScroll({ phase, onPhaseEnd, scroll, ...sheet }: OpenProps) {
   const clipRef = useRef<HTMLDivElement>(null)
   const [armed, setArmed] = useState(false)
   if (phase !== 'opening' && armed) setArmed(false)
-  const spreadNow = phase === 'open' || (phase === 'opening' && armed) || phase === 'folding' || phase === 'envelope'
+  const spreadNow =
+    phase === 'open' || (phase === 'opening' && armed) || phase === 'folding' || phase === 'envelope'
   const folding = phase === 'folding' || phase === 'envelope'
+  const tight = !spreadNow
+  const ribbonState: 'tied' | 'untied' =
+    phase === 'closing' || folding || (phase === 'opening' && !armed) || tight ? 'tied' : 'untied'
 
   useEffect(() => {
     if (phase !== 'opening') return
@@ -34,7 +39,7 @@ export function OpenScroll({ phase, onPhaseEnd, scroll, ...sheet }: OpenProps) {
     if (phase === 'open' || phase === 'envelope') return
     if (phase === 'folding') {
       const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-      const wait = reduced ? 0 : 1400
+      const wait = reduced ? 0 : 1600
       const timer = window.setTimeout(() => onPhaseEnd('folding'), wait)
       return () => window.clearTimeout(timer)
     }
@@ -55,7 +60,7 @@ export function OpenScroll({ phase, onPhaseEnd, scroll, ...sheet }: OpenProps) {
       finish()
     }
     el.addEventListener('transitionend', onEnd)
-    const fallback = window.setTimeout(finish, 1400)
+    const fallback = window.setTimeout(finish, 1600)
     return () => {
       settled = true
       el.removeEventListener('transitionend', onEnd)
@@ -63,27 +68,31 @@ export function OpenScroll({ phase, onPhaseEnd, scroll, ...sheet }: OpenProps) {
     }
   }, [phase, onPhaseEnd])
 
-  const clipClass = spreadNow && !folding
-    ? 'clip is-open'
-    : phase === 'closing'
-      ? 'clip is-closing'
-      : folding
-        ? 'clip is-open is-folding'
-        : 'clip is-opening'
+  const clipClass =
+    spreadNow && !folding
+      ? 'clip is-open'
+      : phase === 'closing'
+        ? 'clip is-closing'
+        : folding
+          ? 'clip is-open is-folding'
+          : 'clip is-opening'
 
   return (
     <div
-      className={`stage ${spreadNow ? 'is-spread' : 'is-tight'} ${folding ? 'is-folding' : ''} ${phase === 'envelope' ? 'is-enveloped' : ''} tube-${scroll.texture}`}
+      className={`stage ${spreadNow ? 'is-spread' : 'is-tight'} ${folding ? 'is-folding' : ''} ${phase === 'envelope' ? 'is-enveloped' : ''} ${phase === 'closing' ? 'is-rolling-up' : ''} ${phase === 'opening' ? 'is-unrolling' : ''} tube-${scroll.texture}`}
     >
-      <div className="cylinder top" />
+      <ScrollRoller position="top" />
       <div ref={clipRef} className={clipClass}>
         <div className="clip-inner">
+          <div className="roll-curl roll-curl-top" aria-hidden="true" />
           <div className="sheet-wrap">
             <Sheet scroll={scroll} {...sheet} />
           </div>
+          <div className="roll-curl roll-curl-bottom" aria-hidden="true" />
         </div>
       </div>
-      <div className="cylinder bottom" />
+      <ScrollRoller position="bottom" />
+      <SilkRibbon state={ribbonState === 'tied' ? 'tied' : 'untied'} />
     </div>
   )
 }

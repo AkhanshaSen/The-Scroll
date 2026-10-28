@@ -20,7 +20,13 @@ import {
   writeFromWords,
 } from './model.ts'
 import type { SendGateReady } from './components/SendGateDialog.tsx'
-import { clearGuestDisplayName, loadGuestDisplayName, saveGuestDisplayName } from './lib/guestSend.ts'
+import {
+  allowGuestSend,
+  clearGuestDisplayName,
+  defaultSenderName,
+  loadGuestDisplayName,
+  saveGuestDisplayName,
+} from './lib/guestSend.ts'
 import type { MailRecipient } from './lib/recipients.ts'
 import { sendScrollMail } from './sendMail.ts'
 import { loadDesk, saveDesk } from './storage.ts'
@@ -43,6 +49,7 @@ export default function App() {
   const [sendOpen, setSendOpen] = useState(false)
   const [sendGateOpen, setSendGateOpen] = useState(false)
   const [sendDone, setSendDone] = useState(false)
+  const [sentSummary, setSentSummary] = useState<{ title: string; recipients: string[] } | null>(null)
   const [sendLogRefreshKey, setSendLogRefreshKey] = useState(0)
   const pendingRef = useRef<string | null>(null)
   const phaseRef = useRef<ScrollPhase>('open')
@@ -60,22 +67,27 @@ export default function App() {
     if (!supabase) return
     void supabase.auth.getSession().then(({ data }) => {
       setSession(data.session)
-      if (!data.session?.user.is_anonymous) {
+      if (data.session?.user && !data.session.user.is_anonymous) {
         clearGuestDisplayName()
         setGuestDisplayName('')
         senderDisplayNameRef.current = ''
       } else {
         const name = loadGuestDisplayName()
+        saveGuestDisplayName(name)
         setGuestDisplayName(name)
         senderDisplayNameRef.current = name
       }
     })
     const { data } = supabase.auth.onAuthStateChange((_event, next) => {
       setSession(next)
-      if (!next?.user.is_anonymous) {
+      if (next?.user && !next.user.is_anonymous) {
         clearGuestDisplayName()
         setGuestDisplayName('')
         senderDisplayNameRef.current = ''
+      } else if (!next || next.user.is_anonymous) {
+        const name = loadGuestDisplayName()
+        setGuestDisplayName(name)
+        senderDisplayNameRef.current = name
       }
     })
     return () => data.subscription.unsubscribe()
@@ -139,14 +151,19 @@ export default function App() {
     try {
       await upsertScroll(open)
       const image = payload.imageBase64 ?? (await captureStage())
-      await sendScrollMail({
-        scrollId: open.id,
-        recipients: payload.recipients,
-        note: payload.note,
-        imageBase64: image,
-        title,
-        senderDisplayName,
-      })
+      const minSealMs = reducedMotion() ? 0 : 1350
+      const flyAwayMs = reducedMotion() ? 200 : 750
+      await Promise.all([
+        sendScrollMail({
+          scrollId: open.id,
+          recipients: payload.recipients,
+          note: payload.note,
+          imageBase64: image,
+          title,
+          senderDisplayName,
+        }),
+        new Promise<void>((resolve) => window.setTimeout(resolve, minSealMs)),
+      ])
       console.log('[scroll:send] ✓ sent', {
         scrollId: open.id,
         emails,
@@ -161,7 +178,8 @@ export default function App() {
         pendingRef.current = null
         phaseRef.current = 'closing'
         setPhase('closing')
-      }, reducedMotion() ? 200 : 900)
+        setSentSummary({ title, recipients: emails })
+      }, flyAwayMs)
     } catch (error) {
       const message = error instanceof Error ? error.message : 'The letter could not be sent.'
       console.error('[scroll:send] ✗ failed', {
@@ -312,17 +330,34 @@ export default function App() {
     }
   }
 
-  function openSend() {
+  async function ensureGuestSession(): Promise<boolean> {
+    if (!supabase || !allowGuestSend()) return false
+    const name = loadGuestDisplayName() || defaultSenderName()
+    saveGuestDisplayName(name)
+    setGuestDisplayName(name)
+    senderDisplayNameRef.current = name
+    const { error } = await supabase.auth.signInAnonymously()
+    return !error
+  }
+
+  async function openSend() {
     if (!open || busy) return
-    if (!session) {
-      setSendGateOpen(true)
+    if (session && !(session.user.is_anonymous && !senderDisplayNameRef.current && !guestDisplayName)) {
+      setSendOpen(true)
       return
     }
-    if (session.user.is_anonymous && !senderDisplayNameRef.current && !guestDisplayName) {
-      setSendGateOpen(true)
-      return
+    if (allowGuestSend()) {
+      setBusy('send')
+      const ok = session?.user.is_anonymous
+        ? true
+        : await ensureGuestSession()
+      setBusy(null)
+      if (ok) {
+        setSendOpen(true)
+        return
+      }
     }
-    setSendOpen(true)
+    setSendGateOpen(true)
   }
 
   function onSendGateReady(result: SendGateReady) {
@@ -333,6 +368,12 @@ export default function App() {
       senderDisplayNameRef.current = result.senderDisplayName
     }
     setSendOpen(true)
+  }
+
+  function onChangeSenderName(name: string) {
+    saveGuestDisplayName(name)
+    setGuestDisplayName(name)
+    senderDisplayNameRef.current = name
   }
 
   async function confirmSend(recipients: MailRecipient[], note: string) {
@@ -380,6 +421,13 @@ export default function App() {
       sendOpen={sendOpen}
       sendGateOpen={sendGateOpen}
       sendDone={sendDone}
+      sentSummary={sentSummary}
+      onDismissSentSummary={() => setSentSummary(null)}
+      onChangeSenderName={onChangeSenderName}
+      onRequestSignInFromSheet={() => {
+        setSendOpen(false)
+        setSendGateOpen(true)
+      }}
       onToggle={(id) => {
         if (openId === id) requestClose(null)
         else requestClose(id)

@@ -1,3 +1,5 @@
+import { WaxEnvelope } from './WaxEnvelope.tsx'
+
 type EnvelopeSceneProps = {
   active: boolean
   sent: boolean
@@ -9,15 +11,7 @@ export function EnvelopeScene({ active, sent, title }: EnvelopeSceneProps) {
 
   return (
     <div className={`envelope-scene ${sent ? 'is-sent' : ''}`} aria-live="polite">
-      <div className="envelope">
-        <div className="envelope-flap" />
-        <div className="envelope-pocket">
-          <div className="envelope-letter">
-            <span>{title || 'A scroll'}</span>
-          </div>
-        </div>
-        <div className="envelope-seal" aria-hidden="true" />
-      </div>
+      <WaxEnvelope mode={sent ? 'sent' : 'sealing'} title={title || 'A scroll'} />
       <p className="envelope-caption">{sent ? 'On its way' : 'Into the envelope…'}</p>
     </div>
   )

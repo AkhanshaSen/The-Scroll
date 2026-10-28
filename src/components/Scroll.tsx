@@ -73,7 +73,7 @@ export function OpenScroll({ phase, onPhaseEnd, scroll, ...sheet }: OpenProps) {
 
   return (
     <div
-      className={`stage ${spreadNow ? 'is-spread' : 'is-tight'} ${folding ? 'is-folding' : ''} tube-${scroll.texture}`}
+      className={`stage ${spreadNow ? 'is-spread' : 'is-tight'} ${folding ? 'is-folding' : ''} ${phase === 'envelope' ? 'is-enveloped' : ''} tube-${scroll.texture}`}
     >
       <div className="cylinder top" />
       <div ref={clipRef} className={clipClass}>

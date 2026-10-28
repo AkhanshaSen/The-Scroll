@@ -1,14 +1,31 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { authRedirectUrl } from '../lib/authRedirect.ts'
 import { supabase, supabaseConfigured } from '../lib/supabase.ts'
+import { WaxEnvelope } from './WaxEnvelope.tsx'
+
+type ScrollPayload = {
+  title: string
+  note: string
+  senderEmail: string
+  senderDisplayName: string
+  imageBase64: string
+}
 
 type ViewState =
   | { stage: 'loading' }
   | { stage: 'error'; message: string }
-  | { stage: 'envelope'; title: string; note: string; senderEmail: string; imageBase64: string }
-  | { stage: 'opening'; title: string; note: string; senderEmail: string; imageBase64: string }
-  | { stage: 'reading'; title: string; note: string; senderEmail: string; imageBase64: string }
+  | ({ stage: 'envelope' } & ScrollPayload)
+  | ({ stage: 'opening' } & ScrollPayload)
+  | ({ stage: 'reading' } & ScrollPayload)
   | { stage: 'signup'; title: string }
+
+function senderLabel(payload: Pick<ScrollPayload, 'senderEmail' | 'senderDisplayName'>): string {
+  const name = payload.senderDisplayName.trim()
+  if (name) return name
+  const email = payload.senderEmail.trim()
+  if (email) return email.split('@')[0] || email
+  return ''
+}
 
 export function ScrollView({ token }: { token: string }) {
   const [state, setState] = useState<ViewState>({ stage: 'loading' })
@@ -38,6 +55,7 @@ export function ScrollView({ token }: { token: string }) {
           title?: string
           note?: string
           senderEmail?: string
+          senderDisplayName?: string
           imageBase64?: string
           error?: string
         }
@@ -51,6 +69,7 @@ export function ScrollView({ token }: { token: string }) {
           title: data.title ?? 'A scroll',
           note: data.note ?? '',
           senderEmail: data.senderEmail ?? '',
+          senderDisplayName: data.senderDisplayName ?? '',
           imageBase64: data.imageBase64 ?? '',
         })
       } catch {
@@ -64,27 +83,49 @@ export function ScrollView({ token }: { token: string }) {
     }
   }, [token])
 
-  // Auto-open envelope after 1.4 s
+  // Gentle auto-open after 2.2s if the guest hasn't tapped
   useEffect(() => {
     if (state.stage !== 'envelope') return
-    const { title, note, senderEmail, imageBase64 } = state
+    const { title, note, senderEmail, senderDisplayName, imageBase64 } = state
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     const timer = window.setTimeout(
-      () => setState({ stage: 'opening', title, note, senderEmail, imageBase64 }),
-      1400,
+      () =>
+        setState({
+          stage: 'opening',
+          title,
+          note,
+          senderEmail,
+          senderDisplayName,
+          imageBase64,
+        }),
+      reduced ? 200 : 2200,
     )
     return () => window.clearTimeout(timer)
   }, [state])
 
-  // Transition opening → reading after animation
+  // Opening choreography → reading
   useEffect(() => {
     if (state.stage !== 'opening') return
-    const { title, note, senderEmail, imageBase64 } = state
+    const { title, note, senderEmail, senderDisplayName, imageBase64 } = state
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     const timer = window.setTimeout(
-      () => setState({ stage: 'reading', title, note, senderEmail, imageBase64 }),
-      1800,
+      () =>
+        setState({
+          stage: 'reading',
+          title,
+          note,
+          senderEmail,
+          senderDisplayName,
+          imageBase64,
+        }),
+      reduced ? 200 : 1600,
     )
     return () => window.clearTimeout(timer)
   }, [state])
+
+  function beginOpen(payload: ScrollPayload) {
+    setState({ stage: 'opening', ...payload })
+  }
 
   async function requestSignupLink(event: FormEvent) {
     event.preventDefault()
@@ -122,34 +163,33 @@ export function ScrollView({ token }: { token: string }) {
   }
 
   if (state.stage === 'envelope' || state.stage === 'opening') {
-    const { title, senderEmail } = state
+    const payload = state
     const isOpening = state.stage === 'opening'
+    const from = senderLabel(payload)
     return (
       <div className="sv-root">
         <div className="sv-center">
           <p className="sv-from">
-            {senderEmail ? `${senderEmail.split('@')[0]} sent you a scroll` : 'A scroll arrived for you'}
+            {from ? `${from} sent you a scroll` : 'A scroll arrived for you'}
           </p>
-          <div className={`sv-envelope ${isOpening ? 'sv-envelope-open' : ''}`} aria-label="Opening envelope">
-            <div className="sv-env-flap" />
-            <div className="sv-env-pocket">
-              <div className="sv-env-letter">
-                <span>{title}</span>
-              </div>
-            </div>
-            <div className="sv-env-seal" aria-hidden="true">✦</div>
-          </div>
-          <p className="sv-hint">{isOpening ? 'Opening…' : 'Tap to open'}</p>
-          {!isOpening && state.stage === 'envelope' && (
+          <WaxEnvelope
+            mode={isOpening ? 'opening' : 'sealed'}
+            title={payload.title}
+            subtitle={from ? `From ${from}` : undefined}
+            onOpen={
+              !isOpening
+                ? () => beginOpen(payload)
+                : undefined
+            }
+          />
+          <p className="sv-hint">{isOpening ? 'Opening…' : 'Tap the seal to open'}</p>
+          {!isOpening && (
             <button
               type="button"
               className="sv-open-btn"
-              onClick={() => {
-                const { title, note, senderEmail, imageBase64 } = state
-                setState({ stage: 'opening', title, note, senderEmail, imageBase64 })
-              }}
+              onClick={() => beginOpen(payload)}
             >
-              Open scroll
+              Break seal & open
             </button>
           )}
         </div>
@@ -158,19 +198,24 @@ export function ScrollView({ token }: { token: string }) {
   }
 
   if (state.stage === 'reading') {
-    const { title, note, senderEmail, imageBase64 } = state
+    const { title, note, imageBase64 } = state
+    const from = senderLabel(state)
     return (
       <div className="sv-root sv-root-reading">
         <div className="sv-reading-area">
           <header className="sv-header">
             <p className="sv-from-reading">
-              {senderEmail ? `${senderEmail.split('@')[0]} sent this to you` : 'A scroll for you'}
+              {from ? `${from} sent this to you` : 'A scroll for you'}
             </p>
             <h1 className="sv-scroll-title">{title}</h1>
             {note ? <p className="sv-note">"{note}"</p> : null}
           </header>
-          <div className="sv-paper-wrap sv-unroll">
-            <img className="sv-paper-img" src={imageBase64} alt={title} />
+          <div className="sv-scroll-stage sv-unroll">
+            <div className="sv-rod sv-rod-top" aria-hidden="true" />
+            <div className="sv-paper-wrap">
+              <img className="sv-paper-img" src={imageBase64} alt={title} />
+            </div>
+            <div className="sv-rod sv-rod-bottom" aria-hidden="true" />
           </div>
           <div className="sv-cta-area">
             <button
@@ -186,7 +231,6 @@ export function ScrollView({ token }: { token: string }) {
     )
   }
 
-  // signup
   const { title } = state
   return (
     <div className="sv-root">

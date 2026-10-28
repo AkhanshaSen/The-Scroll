@@ -1,5 +1,10 @@
 import { useState, type FormEvent } from 'react'
 import {
+  defaultRecipientEmail,
+  isValidDisplayName,
+  sanitizeDisplayName,
+} from '../lib/guestSend.ts'
+import {
   isValidEmail,
   MAX_RECIPIENTS,
   RECIPIENT_CATEGORIES,
@@ -16,21 +21,36 @@ type Row = {
 type SendSheetProps = {
   open: boolean
   busy: boolean
+  senderDisplayName: string
+  isGuest: boolean
   onClose: () => void
   onSend: (recipients: MailRecipient[], note: string) => void
+  onChangeSenderName?: (name: string) => void
+  onRequestSignIn?: () => void
 }
 
-function newRow(): Row {
+function newRow(email = ''): Row {
   return {
     id: crypto.randomUUID(),
-    email: '',
+    email,
     category: 'friend',
   }
 }
 
-export function SendSheet({ open, busy, onClose, onSend }: SendSheetProps) {
-  const [rows, setRows] = useState<Row[]>(() => [newRow()])
+export function SendSheet({
+  open,
+  busy,
+  senderDisplayName,
+  isGuest,
+  onClose,
+  onSend,
+  onChangeSenderName,
+  onRequestSignIn,
+}: SendSheetProps) {
+  const [rows, setRows] = useState<Row[]>(() => [newRow(defaultRecipientEmail())])
   const [note, setNote] = useState('')
+  const [editingName, setEditingName] = useState(false)
+  const [nameDraft, setNameDraft] = useState(senderDisplayName)
 
   if (!open) return null
 
@@ -52,6 +72,13 @@ export function SendSheet({ open, busy, onClose, onSend }: SendSheetProps) {
     setRows((current) => (current.length <= 1 ? current : current.filter((row) => row.id !== id)))
   }
 
+  function saveName() {
+    const clean = sanitizeDisplayName(nameDraft)
+    if (!isValidDisplayName(clean) || !onChangeSenderName) return
+    onChangeSenderName(clean)
+    setEditingName(false)
+  }
+
   return (
     <div className="send-backdrop" role="presentation" onClick={onClose}>
       <form
@@ -66,6 +93,56 @@ export function SendSheet({ open, busy, onClose, onSend }: SendSheetProps) {
         <p className="whisper">
           Add one or more addresses. The paper folds into an envelope, then goes to each person.
         </p>
+        <p className="send-test-hint">
+          While testing with Resend’s free sender, deliver to{' '}
+          <strong>{defaultRecipientEmail()}</strong> (pre-filled below).
+        </p>
+
+        {isGuest && (
+          <div className="send-as-row">
+            {editingName ? (
+              <>
+                <label className="field send-as-edit">
+                  <span>Sending as</span>
+                  <input
+                    type="text"
+                    maxLength={40}
+                    value={nameDraft}
+                    disabled={busy}
+                    onChange={(event) => setNameDraft(event.target.value)}
+                  />
+                </label>
+                <button type="button" className="send-as-link" disabled={busy} onClick={saveName}>
+                  Save
+                </button>
+              </>
+            ) : (
+              <>
+                <p className="send-as-label">
+                  Sending as <strong>{senderDisplayName || 'Guest'}</strong>
+                </p>
+                {onChangeSenderName && (
+                  <button
+                    type="button"
+                    className="send-as-link"
+                    disabled={busy}
+                    onClick={() => {
+                      setNameDraft(senderDisplayName)
+                      setEditingName(true)
+                    }}
+                  >
+                    Change name
+                  </button>
+                )}
+                {onRequestSignIn && (
+                  <button type="button" className="send-as-link" disabled={busy} onClick={onRequestSignIn}>
+                    Sign in
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+        )}
 
         <div className="recipient-list" aria-label="Recipients">
           {rows.map((row) => (

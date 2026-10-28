@@ -37,6 +37,7 @@ Deno.serve(async (request) => {
       view_token: string
       to_email: string
       sender_email: string
+      sender_display_name: string
       note: string
       status: string
       image_data: string
@@ -45,7 +46,9 @@ Deno.serve(async (request) => {
 
     const { data, error } = await admin
       .from('sends')
-      .select('id, view_token, to_email, sender_email, note, status, image_data, scrolls(title)')
+      .select(
+        'id, view_token, to_email, sender_email, sender_display_name, note, status, image_data, scrolls(title)',
+      )
       .eq('view_token', token)
       .maybeSingle()
 
@@ -63,6 +66,7 @@ Deno.serve(async (request) => {
         title,
         note: row.note ?? '',
         senderEmail: row.sender_email ?? '',
+        senderDisplayName: row.sender_display_name ?? '',
         imageBase64: row.image_data ?? '',
       },
       200,

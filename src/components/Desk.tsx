@@ -23,6 +23,10 @@ type DeskProps = {
   sendOpen: boolean
   sendGateOpen: boolean
   sendDone: boolean
+  sentSummary: { title: string; recipients: string[] } | null
+  onDismissSentSummary: () => void
+  onChangeSenderName: (name: string) => void
+  onRequestSignInFromSheet: () => void
   onToggle: (id: string) => void
   onCreate: () => void
   onPhaseEnd: (phase: ScrollPhase) => void
@@ -64,6 +68,10 @@ export function Desk({
   sendOpen,
   sendGateOpen,
   sendDone,
+  sentSummary,
+  onDismissSentSummary,
+  onChangeSenderName,
+  onRequestSignInFromSheet,
   onToggle,
   onCreate,
   onPhaseEnd,
@@ -197,9 +205,35 @@ export function Desk({
         key={sendOpen ? 'send-open' : 'send-closed'}
         open={sendOpen}
         busy={busy === 'send'}
+        senderDisplayName={guestDisplayName}
+        isGuest={Boolean(session?.user.is_anonymous)}
         onClose={onCloseSend}
         onSend={onConfirmSend}
+        onChangeSenderName={onChangeSenderName}
+        onRequestSignIn={onRequestSignInFromSheet}
       />
+
+      {sentSummary && (
+        <div className="send-backdrop" role="presentation" onClick={onDismissSentSummary}>
+          <div
+            className="congrats-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="congrats-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="congrats-seal" aria-hidden="true">✦</div>
+            <h2 id="congrats-title">Scroll sealed &amp; sent!</h2>
+            <p className="congrats-body">
+              Congratulations — <em>{sentSummary.title}</em> is on its way to{' '}
+              <strong>{sentSummary.recipients.join(', ')}</strong>.
+            </p>
+            <button type="button" className="write" onClick={onDismissSentSummary}>
+              Done
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

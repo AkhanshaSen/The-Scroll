@@ -21,19 +21,18 @@ export async function fetchScrollsForUser(): Promise<Scroll[]> {
     .select('id, payload, title, form, updated_at, created_at, is_deleted')
     .order('updated_at', { ascending: false })
   if (error) throw error
-  return (data as ScrollRow[] | null ?? [])
-    .map((row) => {
-      const scroll = sanitizeScroll(row.payload)
-      if (!scroll) return null
-      return {
-        ...scroll,
-        id: row.id,
-        updatedAt: Date.parse(row.updated_at) || scroll.updatedAt,
-        created: Date.parse(row.created_at) || scroll.created,
-        isDeleted: row.is_deleted === true || scroll.isDeleted === true,
-      }
-    })
-    .filter((scroll): scroll is Scroll => scroll !== null)
+  return (data as ScrollRow[] | null ?? []).flatMap((row) => {
+    const scroll = sanitizeScroll(row.payload)
+    if (!scroll) return []
+    const next: Scroll = {
+      ...scroll,
+      id: row.id,
+      updatedAt: Date.parse(row.updated_at) || scroll.updatedAt,
+      created: Date.parse(row.created_at) || scroll.created,
+      isDeleted: row.is_deleted === true || scroll.isDeleted === true,
+    }
+    return [next]
+  })
 }
 
 export async function upsertScroll(scroll: Scroll): Promise<void> {

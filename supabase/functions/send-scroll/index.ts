@@ -141,7 +141,9 @@ Deno.serve(async (request) => {
       .eq('user_id', user.id)
       .maybeSingle()
     if (scrollError) throw scrollError
-    if (!scroll || scroll.is_deleted) {
+    type ScrollLookup = { id: string; is_deleted?: boolean }
+    const row = scroll as ScrollLookup | null
+    if (!row || row.is_deleted) {
       log('SEND_ERROR', { reason: 'scroll_not_found', scrollId, userId: user.id })
       return json({ error: 'That scroll was not found for your account.' }, 404, corsHeaders)
     }

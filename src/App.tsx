@@ -2,7 +2,12 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { Desk } from './components/Desk.tsx'
 import type { ScrollPhase } from './components/Scroll.tsx'
-import { captureSheetForSend, captureStage, downloadPdf, printSheet } from './exportSheet.ts'
+import {
+  captureSheetForSend,
+  captureStage,
+  downloadPdf,
+  printSheet,
+} from './exportSheet.ts'
 import { supabase } from './lib/supabase.ts'
 import {
   addScrap,
@@ -360,6 +365,7 @@ export default function App() {
 
   async function openSend() {
     if (!open || busy || !scrollHasContent(open)) return
+    setPen(false)
     if (session && !(session.user.is_anonymous && !senderDisplayNameRef.current && !guestDisplayName)) {
       setSendOpen(true)
       return
@@ -397,6 +403,7 @@ export default function App() {
   async function confirmSend(recipients: MailRecipient[], note: string) {
     if (!open || phase !== 'open' || busy || !scrollHasContent(open)) return
     setSendOpen(false)
+    setPen(false)
     setBusy('send')
     setSendDone(false)
     try {

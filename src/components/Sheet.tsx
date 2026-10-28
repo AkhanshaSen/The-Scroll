@@ -35,6 +35,15 @@ export function Sheet({
   const layoutKey = scroll.scraps.map((scrap) => `${scrap.text}|${scrap.x}|${scrap.y}|${scrap.width}|${scrap.size}`).join('~')
 
   useEffect(() => {
+    if (pen) return
+    const current = draftRef.current
+    if (!current) return
+    draftRef.current = null
+    setDraft(null)
+    if (worthKeeping(current)) onCommitStroke(current)
+  }, [pen, onCommitStroke])
+
+  useEffect(() => {
     const el = sheetRef.current
     if (!el) return
     let frame = 0

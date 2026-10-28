@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App.tsx'
 import { ScrollView } from './components/ScrollView.tsx'
+import './fontFaces.ts'
 import './styles.css'
 
 const params = new URLSearchParams(window.location.search)

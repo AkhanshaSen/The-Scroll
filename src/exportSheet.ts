@@ -14,6 +14,13 @@ export async function captureStage(): Promise<string> {
  * Capture only the parchment for email/view links — not rollers or ribbon.
  * Downscales / converts to JPEG when the PNG would exceed the Edge Function size cap.
  */
+/** Wait for fonts and layout before html-to-image (avoids blank captures on GitHub Pages). */
+export async function preparePaperCapture(): Promise<void> {
+  await waitForPaint()
+  await waitForPaint()
+  await waitForFonts(4000)
+}
+
 export async function captureSheetForSend(): Promise<string> {
   const sheet =
     document.querySelector('.stage .sheet') ?? document.querySelector('.stage .sheet-wrap')
@@ -25,6 +32,7 @@ export async function captureSheetForSend(): Promise<string> {
   if (stage instanceof HTMLElement) stage.classList.add('is-capturing')
 
   try {
+    await preparePaperCapture()
     let dataUrl = await captureElement(sheet, { pixelRatio: 1 })
     if (dataUrl.length > MAX_SEND_IMAGE_BASE64_LEN) {
       dataUrl = await shrinkForSend(dataUrl, 1200, 0.88)
@@ -60,7 +68,23 @@ async function captureElement(
   }))
   for (const item of parked) item.node.remove()
   try {
-    return await toPng(el, { pixelRatio: options.pixelRatio, cacheBust: true })
+    const dataUrl = await withTimeout(
+      toPng(el, {
+        pixelRatio: options.pixelRatio,
+        cacheBust: true,
+        skipAutoScale: true,
+        filter: (node) =>
+          !node.classList?.contains('grain') && !node.classList?.contains('pen-banner'),
+      }),
+      25_000,
+      'The paper image took too long. Lift the pen, then try Send by mail again.',
+    )
+    if (dataUrl.length < 8000) {
+      throw new Error(
+        'The paper image came out blank. Hard-refresh the page, lift the pen, and try again.',
+      )
+    }
+    return dataUrl
   } finally {
     for (const item of parked) {
       if (item.parent) item.parent.insertBefore(item.node, item.next)
@@ -149,4 +173,34 @@ function loadImage(src: string): Promise<HTMLImageElement> {
 function fileName(title: string): string {
   const clean = title.replace(/[^\w\s-]+/g, '').trim().replace(/\s+/g, '-').slice(0, 48)
   return clean || 'paper-scroll'
+}
+
+function waitForPaint(): Promise<void> {
+  return new Promise((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+  })
+}
+
+function waitForFonts(ms: number): Promise<void> {
+  if (!document.fonts?.ready) return Promise.resolve()
+  return Promise.race([
+    document.fonts.ready.then(() => undefined),
+    new Promise<void>((resolve) => window.setTimeout(resolve, ms)),
+  ])
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = window.setTimeout(() => reject(new Error(message)), ms)
+    promise.then(
+      (value) => {
+        window.clearTimeout(timer)
+        resolve(value)
+      },
+      (error) => {
+        window.clearTimeout(timer)
+        reject(error)
+      },
+    )
+  })
 }
